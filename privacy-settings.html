@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки за поверителност | Моят Забавен Магазин</title>
+    <meta name="description" content="Настройки за поверителност — управление на бисквитки и езикови настройки.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Marck+Script&family=Yeseva+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+
+<main class="page-shell">
+    <div class="container">
+        <div class="page-title" style="margin-bottom:34px">
+            <span class="eyebrow center reveal">Вашият избор</span>
+            <h1 class="reveal d1"><span class="script">Настройки за</span> поверителност</h1>
+        </div>
+
+        <div class="legal">
+            <div class="panel reveal">
+                <h2>1. Вашите настройки</h2>
+                <p>Нашият сайт използва само основни (essential) бисквитки, които са необходими за правилната работа на количката и езиковите настройки. Те не изискват съгласие.</p>
+
+                <h3>2. Управление на бисквитките</h3>
+                <p>Можете да изтриете или блокирате бисквитките от настройките на вашия браузър. Това може да повлияе на работата на сайта.</p>
+
+                <h3>3. Езикови настройки</h3>
+                <p>Сайтът автоматично разпознава езика на вашия браузър и показва съдържанието на български или английски.</p>
+
+                <h3>4. Вашите права</h3>
+                <p>Имате право на достъп, корекция, изтриване и ограничаване на обработката на вашите лични данни.</p>
+
+                <h3>5. Полезни връзки</h3>
+                <ul class="dash">
+                    <li><a href="privacy.html" style="color:var(--amber-deep)">Политика за поверителност</a></li>
+                    <li><a href="cookies.html" style="color:var(--amber-deep)">Политика за бисквитките</a></li>
+                    <li><a href="terms.html" style="color:var(--amber-deep)">Общи условия</a></li>
+                </ul>
+            </div>
+
+            <div class="panel reveal d1" style="margin-top:22px; text-align:center">
+                <h3 style="margin-top:0">Локални данни на този браузър</h3>
+                <p>Можете да изчистите запазената количка и съгласието за бисквитки от този браузър.</p>
+                <button class="btn btn-red" id="clearBtn" style="margin-top:6px">Изчисти локалните данни</button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="section" style="padding-top:30px"></div>
+<script src="app.js"></script>
+<script>
+document.getElementById("clearBtn").addEventListener("click", () => {
+    ["cart","reservedProducts","soldProducts","cookieAccepted"].forEach(k => localStorage.removeItem(k));
+    window.Shop.updateBadge();
+    window.Shop.toast("Локалните данни са изчистени.", "ok");
+});
+</script>
+</body>
+</html>

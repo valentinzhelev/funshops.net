@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Финализирай поръчката | Моят Забавен Магазин</title>
+    <meta name="description" content="Финализирайте вашата поръчка от Моят Забавен Магазин.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Marck+Script&family=Yeseva+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+
+<main class="page-shell">
+    <div class="container">
+        <div class="page-title" style="margin-bottom:34px">
+            <span class="eyebrow center reveal">Последна стъпка</span>
+            <h1 class="reveal d1"><span class="script">Финализирай</span> поръчката</h1>
+        </div>
+
+        <div id="orderSection" style="max-width:900px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start">
+            <div class="panel reveal">
+                <h2 style="font-size:1.4rem; margin-bottom:16px">Вашата поръчка</h2>
+                <div id="orderItems"></div>
+                <div class="cart-summary" id="orderSummary"></div>
+            </div>
+
+            <div class="panel reveal d1">
+                <h2 style="font-size:1.4rem; margin-bottom:16px">Вашите данни</h2>
+                <div class="form-grid">
+                    <div class="field full"><label for="name">Име и фамилия *</label><input id="name" type="text" placeholder="Иван Иванов"></div>
+                    <div class="field"><label for="city">Град</label><input id="city" type="text" placeholder="Стара Загора"></div>
+                    <div class="field"><label for="phone">Телефон</label><input id="phone" type="tel" placeholder="+359…"></div>
+                    <div class="field full"><label for="address">Адрес / Офис на куриер</label><input id="address" type="text" placeholder="ул. …"></div>
+                    <div class="field full"><label for="comment">Коментар / Пожелание</label><textarea id="comment" rows="4" placeholder="Допълнителни бележки…"></textarea></div>
+                </div>
+                <button class="btn btn-amber btn-block" id="confirmBtn" style="margin-top:18px">Потвърди поръчката</button>
+                <p style="font-size:.82rem; color:var(--ink-soft); margin-top:12px; text-align:center">
+                    С потвърждаването приемате <a href="terms.html" style="color:var(--amber-deep)">Общите условия</a>.
+                </p>
+            </div>
+        </div>
+
+        <!-- Благодарствено -->
+        <div id="thankyou" class="panel thankyou reveal" style="max-width:640px; margin:0 auto; display:none">
+            <div class="check" id="checkIc"></div>
+            <h2 id="thankName"></h2>
+            <p style="color:var(--ink-soft); margin:10px 0 24px">Ще се свържем с вас по телефон или имейл за потвърждение. Благодарим за доверието!</p>
+            <a href="index.html" class="btn btn-amber">Към магазина</a>
+        </div>
+    </div>
+</main>
+
+<div class="section" style="padding-top:0"></div>
+
+<script src="app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const S = window.Shop;
+    document.getElementById("checkIc").innerHTML = S.I.check;
+
+    function loadOrder() {
+        const cart = S.getCart();
+        const items = document.getElementById("orderItems");
+        const summary = document.getElementById("orderSummary");
+        if (!cart.length) {
+            items.innerHTML = `<p style="color:var(--ink-soft)">Няма избрани продукти. <a href="products.html" style="color:var(--amber-deep)">Към продуктите →</a></p>`;
+            summary.innerHTML = "";
+            return;
+        }
+        items.innerHTML = cart.map(i => `
+          <div class="cart-row" style="padding:12px 0">
+            <img src="${S.asset(i.image)}" alt="${i.title}" style="width:64px;height:78px">
+            <div><div class="cr-name" style="font-size:1.05rem">${i.title}</div>
+            <div class="cr-price">${S.money(i.price)}</div></div>
+          </div>`).join("");
+        const total = cart.reduce((s, i) => s + Number(i.price), 0);
+        summary.innerHTML = `<div class="grand"><span>Общо</span><b>${S.money(total)}</b></div>`;
+    }
+
+    document.getElementById("confirmBtn").addEventListener("click", () => {
+        const name = document.getElementById("name").value.trim();
+        if (!name) { S.toast("Моля, въведете име.", "warn"); document.getElementById("name").focus(); return; }
+
+        const cart = S.getCart();
+        if (!cart.length) { S.toast("Количката е празна.", "warn"); return; }
+
+        const order = {
+            id: Date.now(),
+            name,
+            city: document.getElementById("city").value.trim(),
+            address: document.getElementById("address").value.trim(),
+            phone: document.getElementById("phone").value.trim(),
+            comment: document.getElementById("comment").value.trim(),
+            products: cart,
+            total: cart.reduce((s, i) => s + Number(i.price), 0),
+            date: new Date().toLocaleString()
+        };
+
+        // Изпращаме към PHP за запис + имейл (както в оригинала)
+        fetch("save-order.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(order)
+        }).then(r => r.text()).then(r => console.log("Server:", r)).catch(e => console.error(e));
+
+        // Маркираме продуктите като продадени
+        const sold = S.getList("soldProducts");
+        cart.forEach(i => { if (!sold.includes(i.id)) sold.push(i.id); });
+        localStorage.setItem("soldProducts", JSON.stringify(sold));
+        localStorage.removeItem("cart");
+        localStorage.removeItem("reservedProducts");
+        S.updateBadge();
+
+        document.getElementById("orderSection").style.display = "none";
+        document.getElementById("thankName").textContent = "Благодарим за поръчката, " + name + "!";
+        const ty = document.getElementById("thankyou");
+        ty.style.display = "block";
+        ty.classList.add("in");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    loadOrder();
+});
+</script>
+</body>
+</html>

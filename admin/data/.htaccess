@@ -1,0 +1,11 @@
+# Защита на чувствителни данни от пряк достъп през браузър.
+# categories.json остава публичен, защото фронтендът го чете.
+<Files "orders.json">
+    Require all denied
+</Files>
+<Files "visits.json">
+    Require all denied
+</Files>
+<Files "settings.json">
+    Require all denied
+</Files>

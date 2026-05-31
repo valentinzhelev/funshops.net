@@ -1,0 +1,12 @@
+# Данни по време на работа (създават се автоматично от приложението)
+admin/data/orders.json
+admin/data/visits.json
+
+# Системни / редакторски файлове
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# Временни инструменти
+_*.php

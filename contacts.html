@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Контакти | Моят Забавен Магазин</title>
+    <meta name="description" content="Свържете се с Моят Забавен Магазин — Стара Загора. Телефон +359 899 518 271, имейл nedko.velikov@abv.bg.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Marck+Script&family=Yeseva+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+
+<main class="page-shell">
+    <div class="container">
+        <div class="page-title" style="margin-bottom:40px">
+            <span class="eyebrow center reveal">На разположение сме</span>
+            <h1 class="reveal d1"><span class="script">Контакти</span></h1>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card reveal"><div class="ic" id="ic1"></div><h3>Лице за контакт</h3><p>Недко Димитров</p></div>
+            <div class="info-card reveal d1"><div class="ic" id="ic2"></div><h3>Телефон</h3><p><a href="tel:+359899518271">+359 899 518 271</a></p></div>
+            <div class="info-card reveal d2"><div class="ic" id="ic3"></div><h3>Имейл</h3><p><a href="mailto:nedko.velikov@abv.bg">nedko.velikov@abv.bg</a></p></div>
+            <div class="info-card reveal"><div class="ic" id="ic4"></div><h3>Адрес</h3><p>Стара Загора, България</p></div>
+            <div class="info-card reveal d1"><div class="ic" id="ic5"></div><h3>Работно време</h3><p>Понеделник – неделя: 09:00 – 18:00<br>Онлайн поръчки: 24/7</p></div>
+            <div class="info-card reveal d2" style="display:flex;flex-direction:column;justify-content:center;background:linear-gradient(160deg,var(--amber),var(--amber-deep));color:#fff">
+                <h3 style="color:#fff">Имате въпрос?</h3>
+                <p style="color:rgba(255,255,255,.9); margin-bottom:14px">За наличности, допълнителни снимки или цени — пишете ни.</p>
+                <a href="mailto:nedko.velikov@abv.bg" class="btn btn-light btn-sm" style="align-self:flex-start">Изпрати имейл</a>
+            </div>
+        </div>
+
+        <h2 style="text-align:center; margin:50px 0 0; font-family:var(--font-script); color:var(--amber-deep); font-size:2.4rem" class="reveal">Нашето местоположение</h2>
+        <div class="map-wrap reveal">
+            <iframe src="https://www.google.com/maps?q=Stara+Zagora&output=embed" loading="lazy" title="Стара Загора"></iframe>
+        </div>
+    </div>
+</main>
+
+<div class="section" style="padding-top:30px"></div>
+
+<script src="app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const I = window.Shop.I;
+    document.getElementById("ic1").innerHTML = I.hand;
+    document.getElementById("ic2").innerHTML = I.phone;
+    document.getElementById("ic3").innerHTML = I.mail;
+    document.getElementById("ic4").innerHTML = I.pin;
+    document.getElementById("ic5").innerHTML = I.clock;
+});
+</script>
+</body>
+</html>

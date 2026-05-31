@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Админ панел</title>
+
+    <!-- 🔐 ЗАЩИТА НА АДМИН ПАНЕЛА -->
+    <script>
+        if (localStorage.getItem("adminLogged") !== "true") {
+            window.location.href = "login.html";
+        }
+
+        // 🔐 ДОБАВЕНО – JS защита със sessionStorage
+        if (sessionStorage.getItem("adminLogged") !== "true") {
+            window.location.href = "login.html";
+        }
+    </script>
+
+    <link rel="stylesheet" href="admin-style.css">
+
+    <style>
+        .order-badge {
+            background: white;
+            color: black;
+            padding: 3px 7px;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .blink {
+            animation: blinkAnim 2s infinite;
+        }
+
+        @keyframes blinkAnim {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+
+<body class="admin-body">
+
+<div class="sidebar">
+    <h2>АДМИН ПАНЕЛ</h2>
+
+    <a href="categories-admin.html">Категории</a>
+    <a href="products-admin.html">Продукти</a>
+
+    <a href="add-product.html" class="add-btn" style="
+        background:#007bff;
+        color:white;
+        padding:10px;
+        margin:10px 0;
+        display:block;
+        text-align:center;
+        border-radius:5px;
+    ">Добави продукт</a>
+
+    <a href="orders-admin.html">
+        Поръчки
+        <span id="orderCount" class="order-badge">0</span>
+    </a>
+
+    <!-- 🟩 ДОБАВЕНО: Бутон за редакция на Увод -->
+    <a href="edit-uvod.html">Редакция на Увод</a>
+
+    <!-- ПОПРАВЕНО: settings-admin.html → settings.html -->
+    <a href="settings.html">Настройки</a>
+
+    <a href="../index.html?admin=1" class="shop-btn">Магазин</a>
+
+    <a href="login.html" class="logout">Изход</a>
+</div>
+
+<div class="content">
+    <h1>Добре дошъл, админ!</h1>
+    <p>Избери действие от менюто вляво.</p>
+</div>
+
+<script>
+    async function loadOrderCount() {
+        try {
+            const response = await fetch("../orders.json?nocache=" + Date.now());
+            const data = await response.json();
+
+            let count = 0;
+
+            if (Array.isArray(data)) {
+                count = data.length;
+            } else if (Array.isArray(data.orders)) {
+                count = data.orders.length;
+            }
+
+            const badge = document.getElementById("orderCount");
+            badge.textContent = count;
+
+            if (count > 0) {
+                badge.classList.add("blink");
+            } else {
+                badge.classList.remove("blink");
+            }
+
+        } catch (e) {
+            console.error("Грешка при зареждане на поръчките:", e);
+        }
+    }
+
+    loadOrderCount();
+    setInterval(loadOrderCount, 5000);
+</script>
+
+</body>
+</html>
