@@ -6,8 +6,19 @@
     <title id="metaTitle">Продукт | Моят Забавен Магазин</title>
     <meta name="description" content="Ръчно изработено шише за ракия с български фолклорен мотив.">
 
+    <link rel="canonical" id="canonical" href="https://www.funshops.net/products.html">
+    <meta property="og:type" content="product">
+    <meta property="og:site_name" content="Моят Забавен Магазин">
+    <meta property="og:locale" content="bg_BG">
+    <meta property="og:title" id="ogTitle" content="Ръчно изработено шише | Моят Забавен Магазин">
+    <meta property="og:description" id="ogDesc" content="Ръчно изработено шише за ракия с български фолклорен мотив.">
+    <meta property="og:image" id="ogImage" content="https://www.funshops.net/og-cover.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" id="twImage" content="https://www.funshops.net/og-cover.png">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.funshops.net">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Marck+Script&family=Yeseva+One&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="theme.css">
 </head>
@@ -17,7 +28,7 @@
     <div class="container">
         <div class="pdp-grid" id="pdp">
             <div class="pdp-gallery">
-                <div class="pdp-main-img" id="mainImgWrap"><img id="mainImg" src="" alt=""></div>
+                <div class="pdp-main-img" id="mainImgWrap"><img id="mainImg" src="" alt="" decoding="async" fetchpriority="high"></div>
                 <div class="pdp-thumbs" id="thumbs"></div>
             </div>
             <div class="pdp-info">
@@ -85,11 +96,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function render(p, products) {
-        document.getElementById("metaTitle").textContent = p.name + " | Моят Забавен Магазин";
-        document.getElementById("bcName").textContent = p.name;
+        const titleTxt = /^\d+$/.test(String(p.name).trim()) ? "Шише № " + p.name : p.name;
+        document.getElementById("metaTitle").textContent = titleTxt + " | Моят Забавен Магазин";
+        document.getElementById("bcName").textContent = titleTxt;
         document.getElementById("pdpCat").textContent = p.category;
-        document.getElementById("pdpTitle").textContent = p.name;
+        document.getElementById("pdpTitle").textContent = titleTxt;
         document.getElementById("pdpDesc").textContent = p.description || "";
+        updateMeta(p, titleTxt);
 
         images = (p.images || []).filter(s => !String(s).endsWith(".mp4"));
         const mainImg = document.getElementById("mainImg");
@@ -98,7 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const thumbs = document.getElementById("thumbs");
         thumbs.innerHTML = images.map((src, i) =>
-            `<div class="thumb ${i === 0 ? "active" : ""}" data-i="${i}"><img src="${S.asset(src)}" alt="${p.name} ${i+1}" loading="lazy"></div>`).join("");
+            `<div class="thumb ${i === 0 ? "active" : ""}" data-i="${i}"><img src="${S.asset(src)}" alt="${p.name} ${i+1}" loading="lazy" decoding="async"></div>`).join("");
         thumbs.querySelectorAll(".thumb").forEach(th => th.addEventListener("click", () => setMain(Number(th.dataset.i))));
         document.getElementById("mainImgWrap").addEventListener("click", () => openLightbox(currentMain));
 
@@ -141,6 +154,41 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         renderRelated(p, products);
+    }
+
+    function updateMeta(p, titleTxt) {
+        const url = "https://www.funshops.net/product.html?id=" + p.id;
+        const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
+        const imgAbs = img ? S.asset(img) : "https://www.funshops.net/og-cover.png";
+        const desc = (p.description || (titleTxt + " — ръчно изработено шише с български фолклорен мотив.")).slice(0, 200);
+        const set = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
+        set("canonical", "href", url);
+        set("ogTitle", "content", titleTxt + " | Моят Забавен Магазин");
+        set("ogDesc", "content", desc);
+        set("ogImage", "content", imgAbs);
+        set("twImage", "content", imgAbs);
+        document.querySelector('meta[name="description"]').setAttribute("content", desc);
+
+        const reserved = S.getList("soldProducts").concat(S.getList("reservedProducts")).includes(p.id);
+        const ld = {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": titleTxt,
+            "image": imgAbs,
+            "description": desc,
+            "category": p.category,
+            "brand": { "@type": "Brand", "name": "Моят Забавен Магазин" },
+            "offers": {
+                "@type": "Offer",
+                "url": url,
+                "priceCurrency": "EUR",
+                "price": Number(p.price).toFixed(2),
+                "availability": reserved ? "https://schema.org/OutOfStock" : "https://schema.org/InStock"
+            }
+        };
+        let s = document.getElementById("ldProduct");
+        if (!s) { s = document.createElement("script"); s.type = "application/ld+json"; s.id = "ldProduct"; document.head.appendChild(s); }
+        s.textContent = JSON.stringify(ld);
     }
 
     let currentMain = 0;
@@ -194,11 +242,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const grid = document.getElementById("related");
         grid.innerHTML = rel.map((x, i) => {
             const img = (x.images || []).find(s => !String(s).endsWith(".mp4")) || "";
+            const href = S.productHref(x.id);
             return `<article class="product-card reveal" style="transition-delay:${i*60}ms">
-              <a href="${S.productHref(x.id)}" class="pc-media"><img src="${S.asset(img)}" alt="${x.name}" loading="lazy"><span class="pc-tag">${x.category}</span></a>
-              <div class="pc-body"><a href="${S.productHref(x.id)}"><div class="pc-name">${x.name}</div></a>
-              <div class="pc-foot"><span class="pc-price">${x.price} <small>€</small></span>
-              <a href="${S.productHref(x.id)}" class="btn btn-ghost btn-sm">Разгледай</a></div></div></article>`;
+              <a href="${href}" class="pc-media"><img src="${S.asset(img)}" alt="${x.name}" loading="lazy" decoding="async">
+                <span class="pc-tag">${x.category}</span>
+                <span class="pc-quick">Преглед ${S.I.arrow || ""}</span></a>
+              <div class="pc-body"><a href="${href}"><div class="pc-name">${S.productTitle(x.name)}</div></a>
+                <div class="pc-cat">${x.category}</div>
+                <div class="pc-foot"><span class="pc-price">${x.price} <small>€</small></span>
+                <a href="${href}" class="btn btn-ghost btn-sm">Разгледай</a></div></div></article>`;
         }).join("");
         S.observeNew(grid);
     }

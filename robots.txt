@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /order.html
+Disallow: /cart.html
+Disallow: /privacy-settings.html
+
+Sitemap: https://www.funshops.net/sitemap.xml

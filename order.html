@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Финализирай поръчката | Моят Забавен Магазин</title>
     <meta name="description" content="Финализирайте вашата поръчка от Моят Забавен Магазин.">
+    <meta name="robots" content="noindex, follow">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,11 +31,27 @@
             <div class="panel reveal d1">
                 <h2 style="font-size:1.4rem; margin-bottom:16px">Вашите данни</h2>
                 <div class="form-grid">
-                    <div class="field full"><label for="name">Име и фамилия *</label><input id="name" type="text" placeholder="Иван Иванов"></div>
-                    <div class="field"><label for="city">Град</label><input id="city" type="text" placeholder="Стара Загора"></div>
-                    <div class="field"><label for="phone">Телефон</label><input id="phone" type="tel" placeholder="+359…"></div>
-                    <div class="field full"><label for="address">Адрес / Офис на куриер</label><input id="address" type="text" placeholder="ул. …"></div>
-                    <div class="field full"><label for="comment">Коментар / Пожелание</label><textarea id="comment" rows="4" placeholder="Допълнителни бележки…"></textarea></div>
+                    <div class="field full"><label for="name">Име и фамилия *</label><input id="name" type="text" autocomplete="name" placeholder="Иван Иванов"><span class="field-err" data-for="name"></span></div>
+                    <div class="field"><label for="phone">Телефон *</label><input id="phone" type="tel" autocomplete="tel" placeholder="+359 88 888 8888"><span class="field-err" data-for="phone"></span></div>
+                    <div class="field"><label for="email">Имейл</label><input id="email" type="email" autocomplete="email" placeholder="ivan@example.com"><span class="field-err" data-for="email"></span></div>
+
+                    <fieldset class="field full delivery-methods">
+                        <legend>Начин на доставка *</legend>
+                        <div class="radio-grid">
+                            <label class="radio-card"><input type="radio" name="delivery" value="Еконт – до офис" checked>
+                                <span class="rc-ic" data-ic="truck"></span><span class="rc-txt"><b>Еконт</b><small>до офис</small></span></label>
+                            <label class="radio-card"><input type="radio" name="delivery" value="Спиди – до офис">
+                                <span class="rc-ic" data-ic="truck"></span><span class="rc-txt"><b>Спиди</b><small>до офис</small></span></label>
+                            <label class="radio-card"><input type="radio" name="delivery" value="Куриер – до адрес">
+                                <span class="rc-ic" data-ic="pin"></span><span class="rc-txt"><b>До адрес</b><small>с куриер</small></span></label>
+                            <label class="radio-card"><input type="radio" name="delivery" value="Лично предаване – Стара Загора">
+                                <span class="rc-ic" data-ic="hand"></span><span class="rc-txt"><b>Лично</b><small>Стара Загора</small></span></label>
+                        </div>
+                    </fieldset>
+
+                    <div class="field" id="cityField"><label for="city">Град *</label><input id="city" type="text" autocomplete="address-level2" placeholder="Стара Загора"><span class="field-err" data-for="city"></span></div>
+                    <div class="field" id="addrField"><label for="address" id="addrLabel">Офис на куриера *</label><input id="address" type="text" autocomplete="street-address" placeholder="напр. Еконт – Идеален център"><span class="field-err" data-for="address"></span></div>
+                    <div class="field full"><label for="comment">Коментар / Пожелание</label><textarea id="comment" rows="3" placeholder="Допълнителни бележки…"></textarea></div>
                 </div>
                 <button class="btn btn-amber btn-block" id="confirmBtn" style="margin-top:18px">Потвърди поръчката</button>
                 <p style="font-size:.82rem; color:var(--ink-soft); margin-top:12px; text-align:center">
@@ -60,53 +77,115 @@
 document.addEventListener("DOMContentLoaded", () => {
     const S = window.Shop;
     document.getElementById("checkIc").innerHTML = S.I.check;
+    document.querySelectorAll(".rc-ic[data-ic]").forEach(el => { el.innerHTML = S.I[el.dataset.ic] || ""; });
+
+    const $ = id => document.getElementById(id);
+    const delivery = () => document.querySelector('input[name="delivery"]:checked').value;
+    const isPickup = () => delivery().indexOf("Лично") === 0;
 
     function loadOrder() {
         const cart = S.getCart();
-        const items = document.getElementById("orderItems");
-        const summary = document.getElementById("orderSummary");
+        const items = $("orderItems");
         if (!cart.length) {
             items.innerHTML = `<p style="color:var(--ink-soft)">Няма избрани продукти. <a href="products.html" style="color:var(--amber-deep)">Към продуктите →</a></p>`;
-            summary.innerHTML = "";
+            $("orderSummary").innerHTML = "";
+            $("confirmBtn").disabled = true;
             return;
         }
         items.innerHTML = cart.map(i => `
           <div class="cart-row" style="padding:12px 0">
-            <img src="${S.asset(i.image)}" alt="${i.title}" style="width:64px;height:78px">
+            <img src="${S.asset(i.image)}" alt="${i.title}" style="width:64px;height:78px" loading="lazy">
             <div><div class="cr-name" style="font-size:1.05rem">${i.title}</div>
             <div class="cr-price">${S.money(i.price)}</div></div>
           </div>`).join("");
-        const total = cart.reduce((s, i) => s + Number(i.price), 0);
-        summary.innerHTML = `<div class="grand"><span>Общо</span><b>${S.money(total)}</b></div>`;
+        updateSummary();
     }
 
-    document.getElementById("confirmBtn").addEventListener("click", () => {
-        const name = document.getElementById("name").value.trim();
-        if (!name) { S.toast("Моля, въведете име.", "warn"); document.getElementById("name").focus(); return; }
+    function updateSummary() {
+        const cart = S.getCart();
+        if (!cart.length) return;
+        const total = cart.reduce((s, i) => s + Number(i.price), 0);
+        const shipLine = isPickup()
+            ? `<span class="ship-free">Безплатно</span>`
+            : `по тарифа на куриера`;
+        $("orderSummary").innerHTML = `
+          <div class="row"><span>Продукти (${cart.length})</span><span>${S.money(total)}</span></div>
+          <div class="row"><span>Доставка</span><span>${shipLine}</span></div>
+          <div class="grand"><span>Общо</span><b>${S.money(total)}</b></div>
+          <p class="ship-note">Доставката се заплаща при получаване (наложен платеж), освен при лично предаване.</p>`;
+    }
 
+    // Превключване на полета според начина на доставка
+    function syncDeliveryFields() {
+        const pickup = isPickup();
+        $("cityField").style.display = pickup ? "none" : "";
+        $("addrField").style.display = pickup ? "none" : "";
+        $("addrLabel").textContent = delivery().indexOf("адрес") > -1 ? "Адрес за доставка *" : "Офис на куриера *";
+        updateSummary();
+    }
+    document.querySelectorAll('input[name="delivery"]').forEach(r => r.addEventListener("change", syncDeliveryFields));
+
+    // Валидация
+    function setErr(id, msg) {
+        const field = $(id).closest(".field");
+        const err = document.querySelector(`.field-err[data-for="${id}"]`);
+        if (msg) { field.classList.add("invalid"); if (err) err.textContent = msg; }
+        else { field.classList.remove("invalid"); if (err) err.textContent = ""; }
+        return !msg;
+    }
+    function validate() {
+        let ok = true;
+        const name = $("name").value.trim();
+        ok = setErr("name", name ? "" : "Моля, въведете име.") && ok;
+
+        const phoneRaw = $("phone").value.trim();
+        const digits = phoneRaw.replace(/\D/g, "");
+        ok = setErr("phone", digits.length >= 9 ? "" : "Въведете валиден телефон.") && ok;
+
+        const email = $("email").value.trim();
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) ok = setErr("email", "Невалиден имейл.") && ok;
+        else setErr("email", "");
+
+        if (!isPickup()) {
+            ok = setErr("city", $("city").value.trim() ? "" : "Въведете град.") && ok;
+            ok = setErr("address", $("address").value.trim() ? "" : "Въведете адрес/офис.") && ok;
+        } else { setErr("city", ""); setErr("address", ""); }
+        return ok;
+    }
+    // Изчистваме грешка при писане
+    ["name", "phone", "email", "city", "address"].forEach(id =>
+        $(id).addEventListener("input", () => setErr(id, "")));
+
+    $("confirmBtn").addEventListener("click", () => {
         const cart = S.getCart();
         if (!cart.length) { S.toast("Количката е празна.", "warn"); return; }
+        if (!validate()) {
+            S.toast("Моля, попълнете маркираните полета.", "warn");
+            const first = document.querySelector(".field.invalid input");
+            if (first) first.focus();
+            return;
+        }
 
         const order = {
             id: Date.now(),
-            name,
-            city: document.getElementById("city").value.trim(),
-            address: document.getElementById("address").value.trim(),
-            phone: document.getElementById("phone").value.trim(),
-            comment: document.getElementById("comment").value.trim(),
+            name: $("name").value.trim(),
+            phone: $("phone").value.trim(),
+            email: $("email").value.trim(),
+            delivery: delivery(),
+            city: isPickup() ? "Стара Загора" : $("city").value.trim(),
+            address: isPickup() ? "Лично предаване" : $("address").value.trim(),
+            comment: $("comment").value.trim(),
             products: cart,
             total: cart.reduce((s, i) => s + Number(i.price), 0),
             date: new Date().toLocaleString()
         };
 
-        // Изпращаме към PHP за запис + имейл (както в оригинала)
         fetch("save-order.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(order)
         }).then(r => r.text()).then(r => console.log("Server:", r)).catch(e => console.error(e));
 
-        // Маркираме продуктите като продадени
         const sold = S.getList("soldProducts");
         cart.forEach(i => { if (!sold.includes(i.id)) sold.push(i.id); });
         localStorage.setItem("soldProducts", JSON.stringify(sold));
@@ -114,15 +193,16 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem("reservedProducts");
         S.updateBadge();
 
-        document.getElementById("orderSection").style.display = "none";
-        document.getElementById("thankName").textContent = "Благодарим за поръчката, " + name + "!";
-        const ty = document.getElementById("thankyou");
+        $("orderSection").style.display = "none";
+        $("thankName").textContent = "Благодарим за поръчката, " + order.name + "!";
+        const ty = $("thankyou");
         ty.style.display = "block";
         ty.classList.add("in");
         window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     loadOrder();
+    syncDeliveryFields();
 });
 </script>
 </body>

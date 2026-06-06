@@ -29,9 +29,11 @@ foreach ($products as $p) { $total += (float)($p['price'] ?? 0); }
 $order = [
     'id'        => (int)($in['id'] ?? round(microtime(true) * 1000)),
     'name'      => htmlspecialchars($name, ENT_QUOTES, 'UTF-8'),
+    'phone'     => htmlspecialchars(trim($in['phone'] ?? ''), ENT_QUOTES, 'UTF-8'),
+    'email'     => htmlspecialchars(trim($in['email'] ?? ''), ENT_QUOTES, 'UTF-8'),
+    'delivery'  => htmlspecialchars(trim($in['delivery'] ?? ''), ENT_QUOTES, 'UTF-8'),
     'city'      => htmlspecialchars(trim($in['city'] ?? ''), ENT_QUOTES, 'UTF-8'),
     'address'   => htmlspecialchars(trim($in['address'] ?? ''), ENT_QUOTES, 'UTF-8'),
-    'phone'     => htmlspecialchars(trim($in['phone'] ?? ''), ENT_QUOTES, 'UTF-8'),
     'comment'   => htmlspecialchars(trim($in['comment'] ?? ''), ENT_QUOTES, 'UTF-8'),
     'products'  => array_map(function ($p) {
         return [
@@ -59,6 +61,8 @@ if (!empty($settings['email_notifications'])) {
         "Нова поръчка от " . SHOP_NAME . "\n\n" .
         "Име: {$order['name']}\n" .
         "Телефон: {$order['phone']}\n" .
+        "Имейл: {$order['email']}\n" .
+        "Доставка: {$order['delivery']}\n" .
         "Град: {$order['city']}\n" .
         "Адрес: {$order['address']}\n" .
         "Коментар: {$order['comment']}\n\n" .
@@ -68,6 +72,9 @@ if (!empty($settings['email_notifications'])) {
     $subject = '=?UTF-8?B?' . base64_encode('Нова поръчка — ' . SHOP_NAME) . '?=';
     $headers = "From: " . ORDER_EMAIL_FROM . "\r\n" .
                "Content-Type: text/plain; charset=UTF-8\r\n";
+    if (!empty($order['email']) && filter_var($in['email'] ?? '', FILTER_VALIDATE_EMAIL)) {
+        $headers .= "Reply-To: " . ($in['email']) . "\r\n";
+    }
     @mail(ORDER_EMAIL_TO, $subject, $body, $headers);
 }
 

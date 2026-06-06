@@ -70,6 +70,9 @@
         const mlinks = NAV.map(n =>
             `<a href="${n.href}" class="${page === n.href ? "active" : ""}">${t(n.bg, n.en)}</a>`).join("");
 
+        const mainEl = document.querySelector("main");
+        if (mainEl && !mainEl.id) mainEl.id = "main";
+
         const header = document.createElement("header");
         header.className = "nav";
         header.innerHTML = `
@@ -87,6 +90,12 @@
             </div>
           </div>`;
         document.body.prepend(header);
+
+        const skip = document.createElement("a");
+        skip.className = "skip-link";
+        skip.href = "#main";
+        skip.textContent = t("Към съдържанието", "Skip to content");
+        document.body.prepend(skip);
 
         const mm = document.createElement("div");
         mm.className = "mobile-menu";
@@ -380,7 +389,8 @@
         openDrawer, closeDrawer,
         toast, observeNew,
         fetchProducts, fetchCategories,
-        productHref: (id) => "product.html?id=" + id
+        productHref: (id) => "product.html?id=" + id,
+        productTitle: (name) => /^\d+$/.test(String(name).trim()) ? "№ " + name : String(name)
     };
 
     /* ---------------------- Favicon ---------------------- */

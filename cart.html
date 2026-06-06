@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Количка | Моят Забавен Магазин</title>
     <meta name="description" content="Вашата количка с избрани ръчно изработени шишета.">
+    <meta name="robots" content="noindex, follow">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,8 +64,9 @@ document.addEventListener("DOMContentLoaded", () => {
         summary.innerHTML = `
           <div class="cart-summary">
             <div class="row"><span>Брой продукти</span><span>${cart.length}</span></div>
-            <div class="row"><span>Доставка</span><span>според куриера</span></div>
+            <div class="row"><span>Доставка</span><span>по тарифа на куриера</span></div>
             <div class="grand"><span>Общо</span><b>${S.money(total)}</b></div>
+            <p class="ship-note">Доставката се заплаща при получаване (наложен платеж). Начинът на доставка избирате на следваща стъпка.</p>
           </div>
           <a href="order.html" class="btn btn-amber btn-block" style="margin-top:22px">Финализирай поръчката&nbsp;&nbsp;→</a>
           <a href="products.html" class="btn btn-ghost btn-block" style="margin-top:10px">Продължи пазаруването</a>`;

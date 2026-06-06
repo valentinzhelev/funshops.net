@@ -484,6 +484,8 @@
                     <div class="order-products">${o.products.map(p => `<div class="op"><span>${esc(p.title)}</span><b>${money(p.price)}</b></div>`).join("")}</div>
                     <div class="order-info-grid">
                       <div><b>Телефон</b>${esc(o.phone) || "—"}</div>
+                      <div><b>Имейл</b>${esc(o.email) || "—"}</div>
+                      <div><b>Доставка</b>${esc(o.delivery) || "—"}</div>
                       <div><b>Град</b>${esc(o.city) || "—"}</div>
                       <div><b>Адрес</b>${esc(o.address) || "—"}</div>
                       <div><b>Коментар</b>${esc(o.comment) || "—"}</div>
