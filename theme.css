@@ -300,7 +300,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; line-height
     border: 6px solid #fff; transform: rotate(-2deg); transition: transform .5s var(--ease);
 }
 .story-figure:hover .frame { transform: rotate(0); }
-.story-figure .frame img { width: 100%; aspect-ratio: 4/5; object-fit: cover; }
+.story-figure .frame img { width: 100%; aspect-ratio: 4/5; object-fit: cover; object-position: center top; }
 .story-figure .badge-craft {
     position: absolute; bottom: -22px; right: -10px; background: linear-gradient(135deg, var(--amber-glow), var(--amber-deep));
     color: #3a2412; padding: 16px 22px; border-radius: var(--r); box-shadow: var(--shadow); font-weight: 800; text-align: center; transform: rotate(3deg);
@@ -718,9 +718,9 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; line-height
 
 /* Увод / story full */
 .uvod-hero { padding-top: calc(var(--nav-h) + 40px); }
-.uvod-portrait { width: 200px; height: 200px; border-radius: 28px; overflow: hidden; border: 6px solid #fff; box-shadow: var(--shadow);
+.uvod-portrait { width: min(280px, 72vw); aspect-ratio: 3/4; border-radius: 28px; overflow: hidden; border: 6px solid #fff; box-shadow: var(--shadow);
     margin: 0 auto 8px; }
-.uvod-portrait img { width: 100%; height: 100%; object-fit: cover; }
+.uvod-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .uvod-body { max-width: 820px; margin: 0 auto; }
 .uvod-body .lead-line { font-family: var(--font-display); font-size: clamp(1.4rem,3vw,2.1rem); color: var(--amber-deep); text-align: center; margin-bottom: 22px; }
 .uvod-body p { color: var(--ink-soft); font-size: 1.08rem; margin-bottom: 14px; text-align: center; }

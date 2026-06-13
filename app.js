@@ -6,14 +6,9 @@
     "use strict";
 
     /* ---------------------------------------------------------
-       КОНФИГУРАЦИЯ
-       ASSET_BASE сочи къде са снимките/видеата.
-       За предварителен преглед сочи към живия сайт, така че
-       продуктовите снимки се зареждат веднага. След като качите
-       новите файлове в папка MYSHOP (където вече са images/ и
-       videos/), сложете ASSET_BASE = "" за локални пътища.
+       КОНФИГУРАЦИЯ — локални пътища (images/products/…)
     --------------------------------------------------------- */
-    const ASSET_BASE = "https://www.funshops.net/MYSHOP/";
+    const ASSET_BASE = "";
 
     // Сайтът е български по подразбиране (българска аудитория и съдържание).
     const LANG = "bg";
@@ -78,8 +73,8 @@
         header.innerHTML = `
           <div class="container">
             <a href="index.html" class="brand" aria-label="Моят Забавен Магазин">
-              <img class="brand-logo brand-logo--light" src="logo_full.png" alt="Моят Забавен Магазин">
-              <img class="brand-logo brand-logo--ink" src="logo_full_ink.png" alt="" aria-hidden="true">
+              <img class="brand-logo brand-logo--light" src="images/logo_full.png" alt="Моят Забавен Магазин">
+              <img class="brand-logo brand-logo--ink" src="images/logo_full_ink.png" alt="" aria-hidden="true">
             </a>
             <nav class="nav-links">${links}</nav>
             <div class="nav-actions">
@@ -120,7 +115,13 @@
     }
 
     /* ---------------------- Футър ---------------------- */
-    function buildFooter() {
+    function buildFooter(contacts) {
+        const c = contacts || {};
+        const phone = c.phone || "+359 899 518 271";
+        const phoneLink = c.phone_link || "+359899518271";
+        const email = c.email || "nedko.velikov@abv.bg";
+        const address = c.address || t("Стара Загора, България", "Stara Zagora, Bulgaria");
+        const hours = c.hours || "09:00 – 18:00";
         const f = document.createElement("footer");
         f.className = "site-footer";
         f.innerHTML = `
@@ -129,7 +130,7 @@
             <div class="footer-grid">
               <div class="footer-brand">
                 <a href="index.html" class="footer-logo" aria-label="Моят Забавен Магазин">
-                  <img src="logo_full.png" alt="Моят Забавен Магазин">
+                  <img src="images/logo_full.png" alt="Моят Забавен Магазин">
                 </a>
                 <p>${t("Ръчно изработени подаръчни шишета с български фолклорен мотив — създадени с любов в Стара Загора, без лепила и компромиси.",
                        "Handmade gift bottles with Bulgarian folk motifs — crafted with love in Stara Zagora, without glue or compromise.")}</p>
@@ -143,10 +144,10 @@
               </div>
               <div class="footer-col">
                 <h4>${t("Контакти","Contacts")}</h4>
-                <a href="tel:+359899518271" class="hl">+359 899 518 271</a>
-                <a href="mailto:nedko.velikov@abv.bg">nedko.velikov@abv.bg</a>
-                <p>${t("Стара Загора, България","Stara Zagora, Bulgaria")}</p>
-                <p>${t("Работно време","Working hours")}: <span class="hl">09:00 – 18:00</span></p>
+                <a href="tel:${phoneLink}" class="hl">${phone}</a>
+                <a href="mailto:${email}">${email}</a>
+                <p>${address}</p>
+                <p>${t("Работно време","Working hours")}: <span class="hl">${hours}</span></p>
               </div>
             </div>
             <div class="footer-bottom">
@@ -370,9 +371,17 @@
         return productsPromise;
     }
     function fetchCategories() {
-        return fetch("admin/data/categories.json?nocache=" + Date.now())
+        return fetch("categories.json?nocache=" + Date.now())
             .then(r => r.json())
-            .catch(() => fetch("categories.json?nocache=" + Date.now()).then(r => r.json()).catch(() => []));
+            .catch(() => []);
+    }
+    let contentPromise = null;
+    function fetchContent() {
+        if (contentPromise) return contentPromise;
+        contentPromise = fetch("content.json?nocache=" + Date.now())
+            .then(r => r.json())
+            .catch(() => ({ contacts: {} }));
+        return contentPromise;
     }
 
     /* ---------------------- Записване на посещение (запазено) ---------------------- */
@@ -388,7 +397,7 @@
         addToCart, removeFromCart, updateBadge,
         openDrawer, closeDrawer,
         toast, observeNew,
-        fetchProducts, fetchCategories,
+        fetchProducts, fetchCategories, fetchContent,
         productHref: (id) => "product.html?id=" + id,
         productTitle: (name) => /^\d+$/.test(String(name).trim()) ? "№ " + name : String(name)
     };
@@ -397,7 +406,7 @@
     function setFavicon() {
         if (document.querySelector('link[rel="icon"]')) return;
         const l = document.createElement("link");
-        l.rel = "icon"; l.type = "image/png"; l.href = "logo_bottle.png";
+        l.rel = "icon"; l.type = "image/png"; l.href = "images/logo_bottle.png";
         document.head.appendChild(l);
     }
 
@@ -406,7 +415,9 @@
         sessionCleanup();
         setFavicon();
         buildNav();
-        if (!document.body.hasAttribute("data-no-footer")) buildFooter();
+        if (!document.body.hasAttribute("data-no-footer")) {
+            fetchContent().then(data => buildFooter(data.contacts));
+        }
         updateBadge();
         initReveal();
         initCounters();

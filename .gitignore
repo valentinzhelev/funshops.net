@@ -2,6 +2,9 @@
 admin/data/orders.json
 admin/data/visits.json
 
+# Медия — качва се директно на сървъра (FTP/ZIP), не в GitHub
+images/
+
 # Системни / редакторски файлове
 .DS_Store
 Thumbs.db

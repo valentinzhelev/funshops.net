@@ -4,9 +4,7 @@
 (function () {
     "use strict";
 
-    /* Базов адрес за снимки/видео (както фронтенда). За локални пътища
-       след пълно мигриране сложете ASSET_BASE = "../". */
-    const ASSET_BASE = "https://www.funshops.net/MYSHOP/";
+    const ASSET_BASE = "../";
     const asset = p => !p ? "" : (/^https?:/i.test(p) ? p : ASSET_BASE + String(p).replace(/^\//, ""));
 
     /* ---------------------- Икони ---------------------- */
@@ -32,7 +30,10 @@
         calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
         clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         film:'<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18M17 3v18M2 8h5M2 16h5M17 8h5M17 16h5"/>',
-        up:'<path d="M12 19V5M5 12l7-7 7 7"/>'
+        up:'<path d="M12 19V5M5 12l7-7 7 7"/>',
+        left:'<path d="M15 18l-6-6 6-6"/>',
+        right:'<path d="M9 18l6-6-6-6"/>',
+        back:'<path d="M19 12H5M12 19l-7-7 7-7"/>'
     };
     function svg(name, w) { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${w?`width="${w}" height="${w}"`:''}>${ICONS[name]||''}</svg>`; }
     function hydrateIcons(scope) { (scope||document).querySelectorAll('[data-i]').forEach(el => { el.innerHTML = svg(el.dataset.i); }); }
@@ -89,19 +90,32 @@
     async function loadCats() { const d = await api("categories_list"); CATS = d.categories; CAT_COUNTS = d.counts; return d; }
 
     /* ---------------------- Рутер ---------------------- */
-    const titles = { dashboard: "Табло", products: "Продукти", categories: "Категории", orders: "Поръчки", uvod: "Редакция на Увод", settings: "Настройки" };
+    const titles = { dashboard: "Табло", products: "Продукти", categories: "Категории", orders: "Поръчки", uvod: "Страница Увод", settings: "Настройки и контакти" };
     const views = {};
     function setActive(view) {
         document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
         document.getElementById("viewTitle").textContent = titles[view] || "";
     }
     async function route() {
-        const view = (location.hash.replace("#", "") || "dashboard");
-        if (!views[view]) { location.hash = "dashboard"; return; }
-        setActive(view);
-        closeSidebar();
+        const raw = location.hash.replace("#", "") || "dashboard";
         const content = document.getElementById("content");
         content.innerHTML = `<div class="loader">Зареждане…</div>`;
+        closeSidebar();
+
+        if (raw.startsWith("product/")) {
+            const id = Number(raw.split("/")[1]);
+            setActive("products");
+            document.getElementById("viewTitle").textContent = id ? "Редакция на продукт" : "Нов продукт";
+            try { await views.productEdit(content, id); }
+            catch (e) { content.innerHTML = `<div class="empty">Грешка: ${esc(e.message)}</div>`; }
+            hydrateIcons(content);
+            return;
+        }
+
+        const view = raw;
+        if (!views[view]) { location.hash = "dashboard"; return; }
+        setActive(view);
+        document.getElementById("viewTitle").textContent = titles[view] || "";
         try { await views[view](content); } catch (e) { content.innerHTML = `<div class="empty">Грешка: ${esc(e.message)}</div>`; }
         hydrateIcons(content);
     }
@@ -248,7 +262,7 @@
             <button class="btn btn-primary" id="addProduct">${svg("plus", 18)} Добави продукт</button>
           </div>
           <div class="card"><div class="table-wrap"><table class="tbl">
-            <thead><tr><th>Снимка</th><th>Име</th><th>Цена</th><th>Категория</th><th>Видео</th><th>Статус</th><th style="text-align:right">Действия</th></tr></thead>
+            <thead><tr><th>Снимка</th><th>Име</th><th>Цена</th><th>Категория</th><th>Снимки</th><th>Статус</th><th style="text-align:right">Действия</th></tr></thead>
             <tbody id="pBody"></tbody></table></div><div class="empty" id="pEmpty" hidden>Няма продукти.</div></div>`;
 
         const render = () => {
@@ -268,7 +282,7 @@
                   <td><b>${esc(p.name)}</b><div class="tbl-id">${p.id}</div></td>
                   <td class="price-cell">${esc(p.price)} €</td>
                   <td>${esc(p.category || "—")}</td>
-                  <td>${p.video ? svg("film", 18) : "—"}</td>
+                  <td>${(p.images || []).filter(s => !String(s).endsWith(".mp4")).length} бр.</td>
                   <td>${p.available ? '<span class="badge ok">Наличен</span>' : '<span class="badge off">Изчерпан</span>'}</td>
                   <td><div class="cell-actions">
                     <button class="btn btn-ghost btn-sm" data-act="toggle" data-id="${p.id}">${p.available ? "Изчерпан" : "Върни"}</button>
@@ -283,14 +297,14 @@
 
         document.getElementById("pSearch").addEventListener("input", render);
         document.getElementById("pCat").addEventListener("change", render);
-        document.getElementById("addProduct").addEventListener("click", () => productForm(null));
+        document.getElementById("addProduct").addEventListener("click", () => { location.hash = "product/0"; });
         render();
         window.__renderProducts = render;
     };
 
     async function productAction(act, id) {
         const p = PRODUCTS.find(x => x.id === id);
-        if (act === "edit") return productForm(p);
+        if (act === "edit") return (location.hash = "product/" + id);
         if (act === "toggle") { await api("product_toggle", { body: { id } }); p.available = !p.available; toast("Статусът е обновен."); window.__renderProducts(); }
         if (act === "dup") { const d = await api("product_duplicate", { body: { id } }); PRODUCTS.push(d.product); toast("Дублиран продукт."); window.__renderProducts(); }
         if (act === "del") {
@@ -300,74 +314,160 @@
         }
     }
 
-    function productForm(p) {
-        const isNew = !p;
-        p = p || { id: 0, name: "", price: "", category: CATS[0] || "", tags: [], description: "", images: [], video: "", available: true };
+    function productMediaSubdir(p, category) {
+        const all = [...(p.images || []), p.video].filter(Boolean);
+        for (const path of all) {
+            const m = String(path).match(/^images\/(products|packages)\/(\d{2})\//);
+            if (m) return m[1] + "/" + m[2];
+        }
+        const name = String(p.name || "").trim();
+        if (/^\d{1,2}$/.test(name)) {
+            const n = name.padStart(2, "0");
+            const cat = category || p.category || "";
+            return /опаков/i.test(cat) ? "packages/" + n : "products/" + n;
+        }
+        return "";
+    }
+
+    views.productEdit = async (root, id) => {
+        await loadCats();
+        if (!PRODUCTS.length) {
+            const pd = await api("products_list");
+            PRODUCTS = pd.products;
+        }
+        const existing = id ? PRODUCTS.find(x => x.id === id) : null;
+        if (id && !existing) {
+            root.innerHTML = `<div class="empty">Продуктът не е намерен. <button class="btn btn-ghost" id="pBack">Назад</button></div>`;
+            document.getElementById("pBack").addEventListener("click", () => { location.hash = "products"; });
+            return;
+        }
+        const p = existing || { id: 0, name: "", price: "", category: CATS[0] || "", tags: [], description: "", images: [], video: null, available: true };
         const tags = Array.isArray(p.tags) ? p.tags.join(", ") : (p.tags || "");
-        openModal(isNew ? "Нов продукт" : "Редакция: " + p.name, `
-          <form id="pForm">
-            <div class="form-grid">
-              <div class="field"><label>Име *</label><input class="input" name="name" value="${esc(p.name)}" required></div>
-              <div class="field"><label>Цена (€)</label><input class="input" name="price" type="number" step="0.01" value="${esc(p.price)}"></div>
-              <div class="field"><label>Категория</label><select class="input" name="category">${CATS.map(c => `<option ${c === p.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
-              <div class="field"><label>Наличност</label><label class="switch"><input type="checkbox" name="available" ${p.available ? "checked" : ""}><span class="track"></span><span id="availTxt">${p.available ? "Наличен" : "Изчерпан"}</span></label></div>
-              <div class="field full"><label>Тагове <span class="hint">(разделени със запетая)</span></label><input class="input" name="tags" value="${esc(tags)}"></div>
-              <div class="field full"><label>Описание</label><textarea class="input" name="description" rows="4">${esc(p.description)}</textarea></div>
-            </div>
-
-            <div class="field full"><label>Снимки</label>
-              <div class="uploader" id="imgDrop">${svg("up")} <div>Пуснете или изберете снимки</div><input type="file" id="imgInput" accept="image/*" multiple hidden></div>
-              <div class="thumbs" id="imgThumbs"></div>
-            </div>
-
-            <div class="field full"><label>Видео <span class="hint">(по избор, mp4)</span></label>
-              <div class="uploader" id="vidDrop">${svg("film")} <div id="vidLabel">Изберете видео</div><input type="file" id="vidInput" accept="video/*" hidden></div>
-            </div>
-
-            <div class="modal-foot">
-              <button type="button" class="btn btn-ghost" id="pCancel">Отказ</button>
-              <button type="submit" class="btn btn-primary" id="pSave">${svg("check",18)} Запази</button>
-            </div>
-          </form>`);
-
         let images = [...(p.images || [])].filter(s => !String(s).endsWith(".mp4"));
         let video = p.video || "";
+
+        root.innerHTML = `
+          <div class="edit-toolbar">
+            <button type="button" class="btn btn-ghost" id="pBack">${svg("back", 18)} Назад към продуктите</button>
+            <button type="button" class="btn btn-primary" id="pSaveTop">${svg("check", 18)} Запази</button>
+          </div>
+          <form id="pForm" class="edit-form">
+            <div class="card"><div class="card-head"><h2>Основна информация</h2></div>
+              <div class="card-body">
+                <div class="form-grid">
+                  <div class="field"><label>Име / номер *</label><input class="input" name="name" value="${esc(p.name)}" required placeholder="напр. 01"></div>
+                  <div class="field"><label>Цена (€)</label><input class="input" name="price" type="number" step="0.01" min="0" value="${esc(p.price)}"></div>
+                  <div class="field"><label>Категория</label><select class="input" name="category" id="pCategory">${CATS.map(c => `<option ${c === p.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
+                  <div class="field"><label>Наличност</label><label class="switch"><input type="checkbox" name="available" ${p.available ? "checked" : ""}><span class="track"></span><span id="availTxt">${p.available ? "Наличен" : "Изчерпан"}</span></label></div>
+                  <div class="field full"><label>Тагове <span class="hint">(разделени със запетая)</span></label><input class="input" name="tags" value="${esc(tags)}" placeholder="Бутилки, Подаръци"></div>
+                  <div class="field full"><label>Описание</label><textarea class="input" name="description" rows="10" placeholder="Размери, детайли, бележки…">${esc(p.description)}</textarea></div>
+                </div>
+              </div>
+            </div>
+            <div class="card section-gap"><div class="card-head"><h2>Снимки <span class="hint" id="imgCount"></span></h2></div>
+              <div class="card-body">
+                <p class="hint" style="margin-bottom:12px">Добавяне, премахване и подреждане. Първата снимка се показва в каталога.</p>
+                <div class="thumbs thumbs-lg" id="imgThumbs"></div>
+                <div class="uploader" id="imgDrop" style="margin-top:14px">${svg("up")} <div>Добави снимки — клик или пусни файлове тук</div><input type="file" id="imgInput" accept="image/*" multiple hidden></div>
+              </div>
+            </div>
+            <div class="card section-gap"><div class="card-head"><h2>Видео</h2></div>
+              <div class="card-body">
+                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта.</p>
+                <div id="vidBox"></div>
+                <div class="row-gap" style="margin-top:12px">
+                  <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео (mp4)</span><input type="file" id="vidInput" accept="video/*" hidden></div>
+                  <button type="button" class="btn btn-ghost btn-sm" id="vidRemove" ${video ? "" : "hidden"}>Премахни видеото</button>
+                </div>
+              </div>
+            </div>
+            <div class="edit-toolbar edit-toolbar-bottom">
+              <button type="button" class="btn btn-ghost" id="pCancel">Отказ</button>
+              <button type="submit" class="btn btn-primary">${svg("check", 18)} Запази продукта</button>
+            </div>
+          </form>`;
+
         const thumbsEl = document.getElementById("imgThumbs");
+        const imgCount = document.getElementById("imgCount");
+        const vidBox = document.getElementById("vidBox");
+        const vidLabel = document.getElementById("vidLabel");
+        const vidRemove = document.getElementById("vidRemove");
+        const catEl = document.getElementById("pCategory");
+        const getSubdir = () => productMediaSubdir({ ...p, name: document.querySelector('[name="name"]').value, category: catEl.value }, catEl.value);
+
+        const renderVideo = () => {
+            if (video) {
+                vidBox.innerHTML = `<video class="vid-preview" controls preload="metadata" src="${asset(video)}"></video><p class="hint">${esc(video)}</p>`;
+                vidLabel.textContent = "Смени видеото";
+                vidRemove.hidden = false;
+            } else {
+                vidBox.innerHTML = `<p class="hint">Няма качено видео.</p>`;
+                vidLabel.textContent = "Качи видео (mp4)";
+                vidRemove.hidden = true;
+            }
+        };
+
         const renderThumbs = () => {
-            thumbsEl.innerHTML = images.map((src, i) => `<div class="thumb-item"><img src="${asset(src)}" alt="" onerror="this.style.opacity=.3"><button type="button" class="del" data-i="${i}">${svg("x",13)}</button></div>`).join("");
-            thumbsEl.querySelectorAll(".del").forEach(b => b.addEventListener("click", () => { images.splice(Number(b.dataset.i), 1); renderThumbs(); }));
+            imgCount.textContent = images.length ? `(${images.length})` : "";
+            thumbsEl.innerHTML = images.length ? images.map((src, i) => `
+              <div class="thumb-item thumb-item-lg">
+                <img src="${asset(src)}" alt="Снимка ${i + 1}" loading="lazy" onerror="this.style.opacity=.3">
+                <div class="thumb-actions">
+                  <button type="button" class="thumb-btn" data-act="left" data-i="${i}" title="Наляво" ${i === 0 ? "disabled" : ""}>${svg("left", 14)}</button>
+                  <button type="button" class="thumb-btn" data-act="right" data-i="${i}" title="Надясно" ${i === images.length - 1 ? "disabled" : ""}>${svg("right", 14)}</button>
+                  <button type="button" class="thumb-btn danger" data-act="del" data-i="${i}" title="Премахни">${svg("x", 14)}</button>
+                </div>
+                ${i === 0 ? '<span class="thumb-main">Основна</span>' : ""}
+              </div>`).join("") : `<p class="hint">Няма снимки. Добавете от бутона по-долу.</p>`;
+            thumbsEl.querySelectorAll(".thumb-btn").forEach(b => {
+                b.addEventListener("click", () => {
+                    const i = Number(b.dataset.i);
+                    if (b.dataset.act === "del") { images.splice(i, 1); renderThumbs(); return; }
+                    if (b.dataset.act === "left" && i > 0) { [images[i - 1], images[i]] = [images[i], images[i - 1]]; renderThumbs(); }
+                    if (b.dataset.act === "right" && i < images.length - 1) { [images[i + 1], images[i]] = [images[i], images[i + 1]]; renderThumbs(); }
+                });
+            });
         };
         renderThumbs();
+        renderVideo();
 
-        const vidLabel = document.getElementById("vidLabel");
-        if (video) vidLabel.textContent = video.split("/").pop();
-
-        // качване снимки
         const imgInput = document.getElementById("imgInput");
         const imgDrop = document.getElementById("imgDrop");
         imgDrop.addEventListener("click", () => imgInput.click());
         imgInput.addEventListener("change", async () => {
             if (!imgInput.files.length) return;
-            await uploadFiles(imgInput.files, "image").then(paths => { images.push(...paths); renderThumbs(); toast("Снимките са качени."); }).catch(e => toast(e.message, "err"));
+            try {
+                images.push(...await uploadFiles(imgInput.files, "image", getSubdir()));
+                renderThumbs();
+                toast("Снимките са добавени.");
+            } catch (e) { toast(e.message, "err"); }
             imgInput.value = "";
         });
-        dragDrop(imgDrop, async files => { const paths = await uploadFiles(files, "image"); images.push(...paths); renderThumbs(); });
+        dragDrop(imgDrop, async files => { images.push(...await uploadFiles(files, "image", getSubdir())); renderThumbs(); });
 
-        // качване видео
         const vidInput = document.getElementById("vidInput");
-        const vidDrop = document.getElementById("vidDrop");
-        vidDrop.addEventListener("click", () => vidInput.click());
+        document.getElementById("vidDrop").addEventListener("click", () => vidInput.click());
         vidInput.addEventListener("change", async () => {
             if (!vidInput.files.length) return;
-            await uploadFiles(vidInput.files, "video").then(paths => { video = paths[0]; vidLabel.textContent = video.split("/").pop(); toast("Видеото е качено."); }).catch(e => toast(e.message, "err"));
+            try {
+                video = (await uploadFiles(vidInput.files, "video", getSubdir()))[0];
+                renderVideo();
+                toast("Видеото е качено.");
+            } catch (e) { toast(e.message, "err"); }
             vidInput.value = "";
         });
+        vidRemove.addEventListener("click", () => { video = ""; renderVideo(); });
 
-        document.querySelector('[name="available"]').addEventListener("change", e => document.getElementById("availTxt").textContent = e.target.checked ? "Наличен" : "Изчерпан");
-        document.getElementById("pCancel").addEventListener("click", closeModal);
-        document.getElementById("pForm").addEventListener("submit", async e => {
-            e.preventDefault();
-            const f = e.target;
+        document.querySelector('[name="available"]').addEventListener("change", e => {
+            document.getElementById("availTxt").textContent = e.target.checked ? "Наличен" : "Изчерпан";
+        });
+
+        const goBack = () => { location.hash = "products"; };
+        document.getElementById("pBack").addEventListener("click", goBack);
+        document.getElementById("pCancel").addEventListener("click", goBack);
+
+        const saveProduct = async () => {
+            const f = document.getElementById("pForm");
             const body = {
                 id: p.id || 0,
                 name: f.name.value.trim(),
@@ -376,22 +476,30 @@
                 tags: f.tags.value,
                 description: f.description.value,
                 available: f.available.checked,
-                images, video
+                images,
+                video: video || null
             };
             if (!body.name) { toast("Името е задължително.", "err"); return; }
-            try {
-                const d = await api("product_save", { body });
-                if (isNew || d.created) PRODUCTS.push(d.product);
-                else { const idx = PRODUCTS.findIndex(x => x.id === d.product.id); if (idx > -1) PRODUCTS[idx] = d.product; }
-                toast("Продуктът е запазен."); closeModal(); window.__renderProducts && window.__renderProducts();
-            } catch (err) { toast(err.message, "err"); }
-        });
-    }
+            const d = await api("product_save", { body });
+            if (p.id === 0 || d.created) PRODUCTS.push(d.product);
+            else { const idx = PRODUCTS.findIndex(x => x.id === d.product.id); if (idx > -1) PRODUCTS[idx] = d.product; }
+            toast("Продуктът е запазен.");
+            location.hash = "products";
+        };
 
-    async function uploadFiles(fileList, kind) {
+        document.getElementById("pSaveTop").addEventListener("click", () => saveProduct().catch(e => toast(e.message, "err")));
+        document.getElementById("pForm").addEventListener("submit", e => {
+            e.preventDefault();
+            saveProduct().catch(err => toast(err.message, "err"));
+        });
+    };
+
+    async function uploadFiles(fileList, kind, subdir) {
         const fd = new FormData();
         [...fileList].forEach(f => fd.append("files[]", f));
-        const d = await api("upload", { form: fd, query: "&kind=" + kind });
+        let q = "&kind=" + kind;
+        if (subdir) q += "&subdir=" + encodeURIComponent(subdir);
+        const d = await api("upload", { form: fd, query: q });
         return d.paths;
     }
     function dragDrop(el, onFiles) {
@@ -533,7 +641,7 @@
             <div class="card"><div class="card-head"><h2>Текст на „Увод“</h2>
               <button class="btn btn-primary btn-sm" id="saveUvod">${svg("check",16)} Запази</button></div>
               <div class="card-body"><textarea class="input" id="uvodArea" rows="20" style="font-family:ui-monospace,monospace;font-size:.86rem">${esc(d.content)}</textarea>
-              <div class="field" style="margin-top:10px"><span class="hint">Можете да ползвате HTML. Промените се отразяват в страница „Увод“.</span></div></div>
+              <div class="field" style="margin-top:10px"><span class="hint">HTML е позволен. Текстът се показва на страница „Увод“ в сайта.</span></div></div>
             </div>
             <div class="card"><div class="card-head"><h2>Преглед</h2></div>
               <div class="card-body" id="uvodPreview" style="max-height:560px;overflow:auto"></div></div>
@@ -551,10 +659,21 @@
        НАСТРОЙКИ
        ========================================================= */
     views.settings = async (root) => {
-        const d = await api("settings_get");
+        const [d, cd] = await Promise.all([api("settings_get"), api("content_get")]);
         const s = d.settings;
+        const c = cd.content.contacts || {};
         root.innerHTML = `
           <div class="grid-2">
+            <div class="card"><div class="card-head"><h2>Контакти в сайта</h2><button class="btn btn-primary btn-sm" id="saveContacts">${svg("check",16)} Запази</button></div>
+              <div class="card-body">
+                <div class="field"><label>Телефон (показван)</label><input class="input" id="cPhone" value="${esc(c.phone)}"></div>
+                <div class="field"><label>Телефон (за обаждане, без интервали)</label><input class="input" id="cPhoneLink" value="${esc(c.phone_link)}"></div>
+                <div class="field"><label>Имейл</label><input class="input" id="cEmail" type="email" value="${esc(c.email)}"></div>
+                <div class="field"><label>Лице за контакт</label><input class="input" id="cPerson" value="${esc(c.person)}"></div>
+                <div class="field"><label>Адрес</label><input class="input" id="cAddress" value="${esc(c.address)}"></div>
+                <div class="field"><label>Работно време</label><input class="input" id="cHours" value="${esc(c.hours)}"></div>
+              </div>
+            </div>
             <div class="card"><div class="card-head"><h2>Текстове в сайта</h2><button class="btn btn-primary btn-sm" id="saveSet">${svg("check",16)} Запази</button></div>
               <div class="card-body">
                 <div class="field"><label>Информация за доставка</label><textarea class="input" id="setDelivery" rows="4">${esc(s.delivery)}</textarea></div>
@@ -563,21 +682,24 @@
                 <div class="field"><label class="switch"><input type="checkbox" id="setEmail" ${s.email_notifications ? "checked" : ""}><span class="track"></span> Имейл известия за нови поръчки</label></div>
               </div>
             </div>
-            <div>
-              <div class="card"><div class="card-head"><h2>Поддръжка</h2></div>
-                <div class="card-body">
-                  <p style="color:var(--ink-soft);margin-bottom:14px">Изчистете кеша, ако промените не се виждат веднага в сайта.</p>
-                  <button class="btn btn-outline btn-block" id="clearCache">${svg("cog",18)} Изчисти кеша</button>
-                </div>
-              </div>
-              <div class="card section-gap"><div class="card-head"><h2>Сигурност</h2></div>
-                <div class="card-body">
-                  <p style="color:var(--ink-soft)">За смяна на паролата редактирайте <code>admin/config.php</code> и поставете нов хеш, генериран с:</p>
-                  <pre style="background:var(--bg);padding:12px;border-radius:10px;overflow:auto;font-size:.8rem;margin-top:10px">php -r "echo password_hash('НОВА_ПАРОЛА', PASSWORD_DEFAULT);"</pre>
-                </div>
-              </div>
+          </div>
+          <div class="card section-gap"><div class="card-head"><h2>Поддръжка</h2></div>
+            <div class="card-body">
+              <p class="hint" style="margin-bottom:14px">Изчистете кеша, ако промените не се виждат веднага в сайта.</p>
+              <button class="btn btn-outline" id="clearCache">${svg("cog",18)} Изчисти кеша</button>
             </div>
           </div>`;
+        document.getElementById("saveContacts").addEventListener("click", async () => {
+            await api("content_save", { body: { contacts: {
+                phone: document.getElementById("cPhone").value,
+                phone_link: document.getElementById("cPhoneLink").value,
+                email: document.getElementById("cEmail").value,
+                person: document.getElementById("cPerson").value,
+                address: document.getElementById("cAddress").value,
+                hours: document.getElementById("cHours").value
+            }}});
+            toast("Контактите са запазени.");
+        });
         document.getElementById("saveSet").addEventListener("click", async () => {
             await api("settings_save", { body: {
                 delivery: document.getElementById("setDelivery").value,

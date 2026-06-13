@@ -13,11 +13,11 @@
     <meta property="og:title" content="Увод – историята на майстора | Моят Забавен Магазин">
     <meta property="og:description" content="Запознайте се с майстора и неговите ръчно изработени шишета с български фолклорен мотив.">
     <meta property="og:url" content="https://www.funshops.net/uvod.html">
-    <meta property="og:image" content="https://www.funshops.net/og-cover.png">
+    <meta property="og:image" content="https://www.funshops.net/images/og-cover.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://www.funshops.net/og-cover.png">
+    <meta name="twitter:image" content="https://www.funshops.net/images/og-cover.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,37 +34,12 @@
         </div>
 
         <div class="uvod-portrait reveal-zoom">
-            <img src="https://www.funshops.net/MYSHOP/uvod-photo.jpg" alt="Недко Димитров"
-                 onerror="this.parentNode.style.display='none'">
+            <img src="images/nedko_dimitrov.png" alt="Недко Димитров — майсторът" loading="lazy" decoding="async">
         </div>
         <p style="text-align:center; font-weight:800; color:var(--ink-soft)" class="reveal">Недко Димитров • Стара Загора</p>
 
-        <div class="uvod-body" style="margin-top:34px">
-            <p class="lead-line reveal">Изработвам подаръчни шишета с български фолклорен мотив.</p>
-
-            <p class="reveal">Подходящи за много поводи:</p>
-            <div class="occasions">
-                <span class="chip red reveal">Рожден ден</span>
-                <span class="chip green reveal d1">Имен ден</span>
-                <span class="chip amber reveal d2">Семеен подарък</span>
-                <span class="chip red reveal d3">Украса за механи и заведения</span>
-            </div>
-
-            <div class="divider" style="margin:30px 0"><span>✦</span></div>
-
-            <p class="reveal">Изработени са изцяло чисто — без лепила или други смоли. Единствено точно измерване и прецизно сглобяване.</p>
-            <p class="reveal">Поставени в шишето, фигурите са здраво стегнати и заклинени. След това се измиват и пълнят с алкохол (ракия). Не плават, не мърдат, а след измиване и закисване е невъзможно да се разглобят.</p>
-            <p class="reveal">Дървото придава цвят на ракията — дори да се сипе бяла ракия (за предпочитане), след време тя придобива характерен жълт цвят.</p>
-            <p class="reveal">Шишетата се продават сухи и неизмити, за да може да се правят корекции. Но по ваше желание могат да са измити и подготвени. След получаване се измиват с вода от прашинки и се закисват с вода или ракия.</p>
-            <p class="reveal">Шишето се изработва изцяло ръчно. Отнема много време за цялата изработка, така че моля да оцените този труд. Цената за всяко е различна спрямо трудността на изработка.</p>
-            <p class="reveal">За въпроси относно наличности, допълнителни снимки или цени — моля, изпратете съобщение. Разгледайте снимките и ако харесате нещо, пишете.</p>
-
-            <p class="lead-line reveal" style="margin-top:26px">Очаквам вашите поръчки и благодаря за отделеното време!</p>
-
-            <div style="text-align:center; margin-top:34px" class="reveal">
-                <a href="products.html" class="btn btn-amber">Разгледай продуктите</a>
-                <a href="contacts.html" class="btn btn-ghost">Свържи се с мен</a>
-            </div>
+        <div class="uvod-body" style="margin-top:34px" id="uvodContent">
+            <p class="hint" style="text-align:center">Зареждане…</p>
         </div>
     </div>
 </main>
@@ -72,5 +47,16 @@
 <div class="section" style="padding-top:0"></div>
 
 <script src="app.js"></script>
+<script>
+fetch("uvod.json?nocache=" + Date.now())
+    .then(r => r.json())
+    .then(d => {
+        document.getElementById("uvodContent").innerHTML = d.content || "";
+        window.Shop && window.Shop.observeNew(document.getElementById("uvodContent"));
+    })
+    .catch(() => {
+        document.getElementById("uvodContent").innerHTML = "<p class=\"hint\" style=\"text-align:center\">Текстът не може да се зареди.</p>";
+    });
+</script>
 </body>
 </html>

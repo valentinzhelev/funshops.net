@@ -13,11 +13,11 @@
     <meta property="og:title" content="Контакти | Моят Забавен Магазин">
     <meta property="og:description" content="Свържете се с нас — Стара Загора. Телефон +359 899 518 271, имейл nedko.velikov@abv.bg.">
     <meta property="og:url" content="https://www.funshops.net/contacts.html">
-    <meta property="og:image" content="https://www.funshops.net/og-cover.png">
+    <meta property="og:image" content="https://www.funshops.net/images/og-cover.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://www.funshops.net/og-cover.png">
+    <meta name="twitter:image" content="https://www.funshops.net/images/og-cover.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,23 +42,23 @@
                 <div class="contact-rows">
                     <div class="contact-row">
                         <span class="cr-ic" id="ic2"></span>
-                        <span><span class="cr-label">Телефон</span><a class="cr-value" href="tel:+359899518271">+359 899 518 271</a></span>
+                        <span><span class="cr-label">Телефон</span><a class="cr-value" id="contactPhone" href="tel:+359899518271">+359 899 518 271</a></span>
                     </div>
                     <div class="contact-row">
                         <span class="cr-ic" id="ic3"></span>
-                        <span><span class="cr-label">Имейл</span><a class="cr-value" href="mailto:nedko.velikov@abv.bg">nedko.velikov@abv.bg</a></span>
+                        <span><span class="cr-label">Имейл</span><a class="cr-value" id="contactEmail" href="mailto:nedko.velikov@abv.bg">nedko.velikov@abv.bg</a></span>
                     </div>
                     <div class="contact-row">
                         <span class="cr-ic" id="ic1"></span>
-                        <span><span class="cr-label">Лице за контакт</span><span class="cr-value">Недко Димитров</span></span>
+                        <span><span class="cr-label">Лице за контакт</span><span class="cr-value" id="contactPerson">Недко Димитров</span></span>
                     </div>
                     <div class="contact-row">
                         <span class="cr-ic" id="ic4"></span>
-                        <span><span class="cr-label">Адрес</span><span class="cr-value">Стара Загора, България</span></span>
+                        <span><span class="cr-label">Адрес</span><span class="cr-value" id="contactAddress">Стара Загора, България</span></span>
                     </div>
                     <div class="contact-row">
                         <span class="cr-ic" id="ic5"></span>
-                        <span><span class="cr-label">Работно време</span><span class="cr-value">Пон – Нед: 09:00 – 18:00 · Онлайн 24/7</span></span>
+                        <span><span class="cr-label">Работно време</span><span class="cr-value" id="contactHours">Пон – Нед: 09:00 – 18:00 · Онлайн 24/7</span></span>
                     </div>
                 </div>
             </div>
@@ -71,7 +71,7 @@
         <div class="cta-band reveal">
             <h2>Готови сме да помогнем</h2>
             <p>Всяко шише е уникално и налично в единствен брой. Свържете се с нас, за да си запазите любимото.</p>
-            <a href="mailto:nedko.velikov@abv.bg" class="btn">Изпрати имейл</a>
+            <a href="mailto:nedko.velikov@abv.bg" class="btn" id="contactEmailBtn">Изпрати имейл</a>
         </div>
     </div>
 </main>
@@ -87,6 +87,21 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("ic3").innerHTML = I.mail;
     document.getElementById("ic4").innerHTML = I.pin;
     document.getElementById("ic5").innerHTML = I.clock;
+    window.Shop.fetchContent().then(data => {
+        const c = data.contacts || {};
+        if (c.phone) {
+            document.getElementById("contactPhone").textContent = c.phone;
+            document.getElementById("contactPhone").href = "tel:" + (c.phone_link || c.phone.replace(/\s/g, ""));
+        }
+        if (c.email) {
+            document.getElementById("contactEmail").textContent = c.email;
+            document.getElementById("contactEmail").href = "mailto:" + c.email;
+            document.getElementById("contactEmailBtn").href = "mailto:" + c.email;
+        }
+        if (c.person) document.getElementById("contactPerson").textContent = c.person;
+        if (c.address) document.getElementById("contactAddress").textContent = c.address;
+        if (c.hours) document.getElementById("contactHours").textContent = c.hours;
+    });
 });
 </script>
 </body>

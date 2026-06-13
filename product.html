@@ -12,9 +12,9 @@
     <meta property="og:locale" content="bg_BG">
     <meta property="og:title" id="ogTitle" content="Ръчно изработено шише | Моят Забавен Магазин">
     <meta property="og:description" id="ogDesc" content="Ръчно изработено шише за ракия с български фолклорен мотив.">
-    <meta property="og:image" id="ogImage" content="https://www.funshops.net/og-cover.png">
+    <meta property="og:image" id="ogImage" content="https://www.funshops.net/images/og-cover.png">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" id="twImage" content="https://www.funshops.net/og-cover.png">
+    <meta name="twitter:image" id="twImage" content="https://www.funshops.net/images/og-cover.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -159,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateMeta(p, titleTxt) {
         const url = "https://www.funshops.net/product.html?id=" + p.id;
         const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
-        const imgAbs = img ? S.asset(img) : "https://www.funshops.net/og-cover.png";
+        const imgAbs = img ? S.asset(img) : "https://www.funshops.net/images/og-cover.png";
         const desc = (p.description || (titleTxt + " — ръчно изработено шише с български фолклорен мотив.")).slice(0, 200);
         const set = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
         set("canonical", "href", url);

@@ -1,0 +1,11 @@
+# Качете този файл на сървъра като:
+#   /home/studioje/public_html/.htaccess
+# (корен на public_html — НЕ в папката funshops/)
+#
+# funshops.net → показва сайта от public_html/funshops/
+
+RewriteEngine On
+
+RewriteCond %{HTTP_HOST} ^(www\.)?funshops\.net$ [NC]
+RewriteCond %{REQUEST_URI} !^/funshops/
+RewriteRule ^(.*)$ /funshops/$1 [L]

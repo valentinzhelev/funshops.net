@@ -89,7 +89,7 @@ switch ($action) {
             'name'        => trim((string)($in['name'] ?? '')),
             'price'       => is_numeric($in['price'] ?? null) ? 0 + $in['price'] : 0,
             'images'      => array_values(array_filter((array)($in['images'] ?? []))),
-            'video'       => $in['video'] ?? '',
+            'video'       => !empty($in['video']) ? (string)$in['video'] : null,
             'description' => (string)($in['description'] ?? ''),
             'tags'        => $tags,
             'category'    => (string)($in['category'] ?? ''),
@@ -196,6 +196,9 @@ switch ($action) {
 
     /* ---------------------- УВОД ---------------------- */
     case 'uvod_get':
+        if (!file_exists(UVOD_FILE)) {
+            write_json(UVOD_FILE, ['content' => default_uvod_html()]);
+        }
         json_response(['ok' => true, 'content' => (read_json(UVOD_FILE, ['content' => '']))['content'] ?? '']);
 
     case 'uvod_save': {
@@ -203,6 +206,25 @@ switch ($action) {
         $content = (string)(read_body()['content'] ?? '');
         write_json(UVOD_FILE, ['content' => $content]);
         json_response(['ok' => true]);
+    }
+
+    /* ---------------------- КОНТАКТИ / САЙТ ---------------------- */
+    case 'content_get':
+        json_response(['ok' => true, 'content' => read_content()]);
+
+    case 'content_save': {
+        if ($method !== 'POST') json_error('POST only');
+        $in = read_body();
+        $cur = read_content();
+        if (isset($in['contacts']) && is_array($in['contacts'])) {
+            foreach (['phone', 'phone_link', 'email', 'person', 'address', 'hours'] as $k) {
+                if (array_key_exists($k, $in['contacts'])) {
+                    $cur['contacts'][$k] = trim((string)$in['contacts'][$k]);
+                }
+            }
+        }
+        write_content($cur);
+        json_response(['ok' => true, 'content' => $cur]);
     }
 
     /* ---------------------- ПОРЪЧКИ ---------------------- */
@@ -258,8 +280,15 @@ switch ($action) {
         if ($method !== 'POST') json_error('POST only');
         $kind = $_GET['kind'] ?? 'image';
         $allowed = $kind === 'video' ? ALLOWED_VIDEO_EXT : ALLOWED_IMAGE_EXT;
-        $destDir = $kind === 'video' ? VIDEOS_DIR : IMAGES_DIR;
-        $prefix  = $kind === 'video' ? 'videos/' : 'images/';
+        $subdir = safe_media_subdir($_GET['subdir'] ?? '');
+
+        if ($subdir) {
+            $destDir = IMAGES_DIR . '/' . $subdir;
+            $prefix  = 'images/' . $subdir . '/';
+        } else {
+            $destDir = $kind === 'video' ? VIDEOS_DIR : IMAGES_DIR;
+            $prefix  = $kind === 'video' ? 'videos/' : 'images/';
+        }
         if (!is_dir($destDir)) @mkdir($destDir, 0775, true);
 
         $saved = [];
@@ -273,8 +302,18 @@ switch ($action) {
         foreach ($names as $i => $orig) {
             if (!is_uploaded_file($tmps[$i])) continue;
             if ($sizes[$i] > MAX_UPLOAD_BYTES) json_error('Файлът е твърде голям (макс. 60MB).');
-            $fname = safe_filename($orig, $allowed);
-            if (!$fname) json_error('Недопустим формат: ' . htmlspecialchars($orig));
+            $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowed, true)) json_error('Недопустим формат: ' . htmlspecialchars($orig));
+
+            if ($subdir && $kind === 'video') {
+                $fname = '1.' . $ext;
+            } elseif ($subdir) {
+                $fname = next_image_filename($destDir, $ext);
+            } else {
+                $fname = safe_filename($orig, $allowed);
+                if (!$fname) json_error('Недопустим формат: ' . htmlspecialchars($orig));
+            }
+
             if (move_uploaded_file($tmps[$i], $destDir . '/' . $fname)) {
                 $saved[] = $prefix . $fname;
             }
@@ -285,12 +324,10 @@ switch ($action) {
 
     case 'delete_asset': {
         if ($method !== 'POST') json_error('POST only');
-        $path = (string)(read_body()['path'] ?? '');
-        // Само в рамките на images/ или videos/
-        $path = ltrim($path, '/');
-        if (!preg_match('#^(images|videos)/[A-Za-z0-9._-]+$#', $path)) json_error('Невалиден път.');
-        $full = ROOT_DIR . '/' . $path;
-        if (is_file($full)) @unlink($full);
+        $path = ltrim(str_replace('\\', '/', (string)(read_body()['path'] ?? '')), '/');
+        $full = resolve_image_path($path);
+        if (!$full) json_error('Невалиден път.');
+        @unlink($full);
         json_response(['ok' => true]);
     }
 

@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/studioje/public_html/funshops/
+    - /bin/rsync -av --exclude '.git' --exclude '.github' --exclude 'public_html.htaccess' --exclude 'admin/data/orders.json' --exclude 'admin/data/visits.json' ./ $DEPLOYPATH

@@ -11,7 +11,7 @@ $csrf = csrf_token();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Админ панел — Моят Забавен Магазин</title>
-    <link rel="icon" type="image/png" href="../logo_bottle.png">
+    <link rel="icon" type="image/png" href="../images/logo_bottle.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Yeseva+One&display=swap" rel="stylesheet">
@@ -23,7 +23,7 @@ $csrf = csrf_token();
     <!-- Сайдбар -->
     <aside class="sidebar" id="sidebar">
         <div class="side-brand">
-            <img class="side-logo" src="../logo_full.png" alt="Моят Забавен Магазин">
+            <img class="side-logo" src="../images/logo_full.png" alt="Моят Забавен Магазин">
             <span class="side-tag">Админ панел</span>
         </div>
 
@@ -32,7 +32,7 @@ $csrf = csrf_token();
             <a href="#products" class="nav-item" data-view="products"><span class="ni" data-i="box"></span>Продукти</a>
             <a href="#categories" class="nav-item" data-view="categories"><span class="ni" data-i="tag"></span>Категории</a>
             <a href="#orders" class="nav-item" data-view="orders"><span class="ni" data-i="cart"></span>Поръчки <span class="nav-badge" id="ordBadge" hidden>0</span></a>
-            <a href="#uvod" class="nav-item" data-view="uvod"><span class="ni" data-i="edit"></span>Редакция на Увод</a>
+            <a href="#uvod" class="nav-item" data-view="uvod"><span class="ni" data-i="edit"></span>Страница Увод</a>
             <a href="#settings" class="nav-item" data-view="settings"><span class="ni" data-i="cog"></span>Настройки</a>
         </nav>
 
