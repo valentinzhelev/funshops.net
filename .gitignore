@@ -2,7 +2,10 @@
 admin/data/orders.json
 admin/data/visits.json
 
-# Медия — качва се директно на сървъра (FTP/ZIP), не в GitHub
+# Production secrets — копие от admin/config.example.php на сървъра
+admin/config.php
+
+# Медия (~3 GB) — на сървъра, не в GitHub
 images/
 
 # Системни / редакторски файлове

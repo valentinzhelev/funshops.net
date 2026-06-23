@@ -4,7 +4,9 @@
 (function () {
     "use strict";
 
-    const ASSET_BASE = "../";
+    const ASSET_BASE = (typeof window.SITE_ASSET_BASE === "string" && window.SITE_ASSET_BASE)
+        ? window.SITE_ASSET_BASE
+        : "../";
     const asset = p => !p ? "" : (/^https?:/i.test(p) ? p : ASSET_BASE + String(p).replace(/^\//, ""));
 
     /* ---------------------- Икони ---------------------- */
@@ -366,7 +368,8 @@
             </div>
             <div class="card section-gap"><div class="card-head"><h2>Снимки <span class="hint" id="imgCount"></span></h2></div>
               <div class="card-body">
-                <p class="hint" style="margin-bottom:12px">Добавяне, премахване и подреждане. Първата снимка се показва в каталога.</p>
+                <p class="hint" style="margin-bottom:12px">Добавяне, премахване и подреждане. Първата снимка се показва в каталога.<br>
+                Качете снимки тук — те се записват автоматично в облака (CDN).</p>
                 <div class="thumbs thumbs-lg" id="imgThumbs"></div>
                 <div class="uploader" id="imgDrop" style="margin-top:14px">${svg("up")} <div>Добави снимки — клик или пусни файлове тук</div><input type="file" id="imgInput" accept="image/*" multiple hidden></div>
               </div>
@@ -394,6 +397,11 @@
         const vidRemove = document.getElementById("vidRemove");
         const catEl = document.getElementById("pCategory");
         const getSubdir = () => productMediaSubdir({ ...p, name: document.querySelector('[name="name"]').value, category: catEl.value }, catEl.value);
+        const requireSubdir = () => {
+            const sub = getSubdir();
+            if (!sub) throw new Error("Въведете номер на продукта (напр. 64) преди да качите снимки или видео.");
+            return sub;
+        };
 
         const renderVideo = () => {
             if (video) {
@@ -437,20 +445,20 @@
         imgInput.addEventListener("change", async () => {
             if (!imgInput.files.length) return;
             try {
-                images.push(...await uploadFiles(imgInput.files, "image", getSubdir()));
+                images.push(...await uploadFiles(imgInput.files, "image", requireSubdir()));
                 renderThumbs();
                 toast("Снимките са добавени.");
             } catch (e) { toast(e.message, "err"); }
             imgInput.value = "";
         });
-        dragDrop(imgDrop, async files => { images.push(...await uploadFiles(files, "image", getSubdir())); renderThumbs(); });
+        dragDrop(imgDrop, async files => { images.push(...await uploadFiles(files, "image", requireSubdir())); renderThumbs(); });
 
         const vidInput = document.getElementById("vidInput");
         document.getElementById("vidDrop").addEventListener("click", () => vidInput.click());
         vidInput.addEventListener("change", async () => {
             if (!vidInput.files.length) return;
             try {
-                video = (await uploadFiles(vidInput.files, "video", getSubdir()))[0];
+                video = (await uploadFiles(vidInput.files, "video", requireSubdir()))[0];
                 renderVideo();
                 toast("Видеото е качено.");
             } catch (e) { toast(e.message, "err"); }

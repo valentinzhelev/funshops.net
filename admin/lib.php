@@ -93,6 +93,82 @@ function resolve_image_path($path) {
     return $full;
 }
 
+/** Валидира път до файл в images/products|packages (без локален файл). */
+function safe_image_asset_path($path) {
+    $path = ltrim(str_replace('\\', '/', (string)$path), '/');
+    if (!preg_match('#^images/(products|packages)/(\d{2})/[A-Za-z0-9._-]+$#', $path)) return null;
+    return $path;
+}
+
+function bunny_storage_enabled() {
+    return BUNNY_STORAGE_ZONE !== '' && BUNNY_STORAGE_KEY !== '';
+}
+
+function bunny_storage_host() {
+    $region = trim((string)BUNNY_STORAGE_REGION);
+    return $region ? $region . '.storage.bunnycdn.com' : 'storage.bunnycdn.com';
+}
+
+function bunny_storage_url($remotePath) {
+    $remotePath = ltrim(str_replace('\\', '/', (string)$remotePath), '/');
+    return 'https://' . bunny_storage_host() . '/' . rawurlencode(BUNNY_STORAGE_ZONE) . '/' . $remotePath;
+}
+
+/** @return array{0:int,1:string} */
+function bunny_request($method, $remotePath, $body = null) {
+    $url = bunny_storage_url($remotePath);
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ['AccessKey: ' . BUNNY_STORAGE_KEY],
+        CURLOPT_TIMEOUT => 120,
+    ]);
+    if ($body !== null) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    }
+    $resp = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    if ($resp === false) {
+        $resp = curl_error($ch);
+        $code = 0;
+    }
+    curl_close($ch);
+    return [$code, (string)$resp];
+}
+
+function bunny_list($dirPath) {
+    $dirPath = rtrim(ltrim(str_replace('\\', '/', (string)$dirPath), '/'), '/') . '/';
+    [$code, $resp] = bunny_request('GET', $dirPath);
+    if ($code !== 200) return [];
+    $data = json_decode($resp, true);
+    return is_array($data) ? $data : [];
+}
+
+function bunny_next_image_filename($storageDir, $ext) {
+    $max = 1;
+    foreach (bunny_list($storageDir) as $item) {
+        if (!empty($item['IsDirectory'])) continue;
+        $n = (int)pathinfo($item['ObjectName'] ?? '', PATHINFO_FILENAME);
+        if ($n > $max) $max = $n;
+    }
+    return ($max + 1) . '.' . $ext;
+}
+
+function bunny_upload($remotePath, $tmpFile) {
+    if (!preg_match('#^images/#', $remotePath)) return false;
+    $body = @file_get_contents($tmpFile);
+    if ($body === false) return false;
+    [$code] = bunny_request('PUT', $remotePath, $body);
+    return in_array($code, [200, 201], true);
+}
+
+function bunny_delete($remotePath) {
+    if (!preg_match('#^images/#', $remotePath)) return false;
+    [$code] = bunny_request('DELETE', $remotePath);
+    return in_array($code, [200, 404], true);
+}
+
 /** Гарантира съществуване на дата файловете със стойности по подразбиране. */
 function ensure_data_files() {
     if (!is_dir(DATA_DIR)) @mkdir(DATA_DIR, 0775, true);

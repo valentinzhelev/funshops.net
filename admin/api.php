@@ -278,18 +278,22 @@ switch ($action) {
     /* ---------------------- КАЧВАНЕ НА ФАЙЛОВЕ ---------------------- */
     case 'upload': {
         if ($method !== 'POST') json_error('POST only');
+        if (!function_exists('curl_init')) json_error('Сървърът няма cURL — нужен е за качване в CDN.');
         $kind = $_GET['kind'] ?? 'image';
         $allowed = $kind === 'video' ? ALLOWED_VIDEO_EXT : ALLOWED_IMAGE_EXT;
         $subdir = safe_media_subdir($_GET['subdir'] ?? '');
+        $useBunny = bunny_storage_enabled();
 
         if ($subdir) {
             $destDir = IMAGES_DIR . '/' . $subdir;
             $prefix  = 'images/' . $subdir . '/';
+            $storageDir = 'images/' . $subdir;
         } else {
+            if ($useBunny) json_error('Качване извън продукт/опаковка — използвайте редактора на продукт.');
             $destDir = $kind === 'video' ? VIDEOS_DIR : IMAGES_DIR;
             $prefix  = $kind === 'video' ? 'videos/' : 'images/';
         }
-        if (!is_dir($destDir)) @mkdir($destDir, 0775, true);
+        if (!$useBunny && !is_dir($destDir)) @mkdir($destDir, 0775, true);
 
         $saved = [];
         $files = $_FILES['files'] ?? null;
@@ -308,25 +312,34 @@ switch ($action) {
             if ($subdir && $kind === 'video') {
                 $fname = '1.' . $ext;
             } elseif ($subdir) {
-                $fname = next_image_filename($destDir, $ext);
+                $fname = $useBunny
+                    ? bunny_next_image_filename($storageDir, $ext)
+                    : next_image_filename($destDir, $ext);
             } else {
                 $fname = safe_filename($orig, $allowed);
                 if (!$fname) json_error('Недопустим формат: ' . htmlspecialchars($orig));
             }
 
-            if (move_uploaded_file($tmps[$i], $destDir . '/' . $fname)) {
-                $saved[] = $prefix . $fname;
-            }
+            $relPath = $prefix . $fname;
+            $ok = $useBunny
+                ? bunny_upload($relPath, $tmps[$i])
+                : move_uploaded_file($tmps[$i], $destDir . '/' . $fname);
+            if ($ok) $saved[] = $relPath;
         }
-        if (!$saved) json_error('Качването неуспешно.');
+        if (!$saved) json_error($useBunny ? 'Качването в CDN неуспешно — проверете BUNNY_STORAGE_KEY.' : 'Качването неуспешно.');
         json_response(['ok' => true, 'paths' => $saved]);
     }
 
     case 'delete_asset': {
         if ($method !== 'POST') json_error('POST only');
-        $path = ltrim(str_replace('\\', '/', (string)(read_body()['path'] ?? '')), '/');
+        $path = safe_image_asset_path(read_body()['path'] ?? '');
+        if (!$path) json_error('Невалиден път.');
+        if (bunny_storage_enabled()) {
+            if (!bunny_delete($path)) json_error('Изтриването от CDN неуспешно.');
+            json_response(['ok' => true]);
+        }
         $full = resolve_image_path($path);
-        if (!$full) json_error('Невалиден път.');
+        if (!$full) json_error('Файлът не е намерен.');
         @unlink($full);
         json_response(['ok' => true]);
     }

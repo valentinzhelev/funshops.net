@@ -6,9 +6,17 @@
     "use strict";
 
     /* ---------------------------------------------------------
-       КОНФИГУРАЦИЯ — локални пътища (images/products/…)
+       CDN (Bunny) или локални images/ — виж config.js
     --------------------------------------------------------- */
-    const ASSET_BASE = "";
+    const ASSET_BASE = typeof window.SITE_ASSET_BASE === "string" ? window.SITE_ASSET_BASE : "";
+
+    function applyStaticAssets() {
+        if (!ASSET_BASE) return;
+        document.querySelectorAll('img[src^="images/"], video source[src^="images/"]').forEach(el => {
+            const src = el.getAttribute("src");
+            if (src && !/^https?:/i.test(src)) el.src = ASSET_BASE + src.replace(/^\//, "");
+        });
+    }
 
     // Сайтът е български по подразбиране (българска аудитория и съдържание).
     const LANG = "bg";
@@ -18,7 +26,8 @@
     function asset(p) {
         if (!p) return "";
         if (/^https?:/i.test(p)) return p;
-        return ASSET_BASE + String(p).replace(/^\//, "").replace(/\\\//g, "/");
+        const base = typeof window.SITE_ASSET_BASE === "string" ? window.SITE_ASSET_BASE : ASSET_BASE;
+        return base + String(p).replace(/^\//, "").replace(/\\\//g, "/");
     }
     function t(bg, en) { return LANG === "bg" ? bg : en; }
     function money(n) { return Number(n).toFixed(2) + " €"; }
@@ -73,8 +82,8 @@
         header.innerHTML = `
           <div class="container">
             <a href="index.html" class="brand" aria-label="Моят Забавен Магазин">
-              <img class="brand-logo brand-logo--light" src="images/logo_full.png" alt="Моят Забавен Магазин">
-              <img class="brand-logo brand-logo--ink" src="images/logo_full_ink.png" alt="" aria-hidden="true">
+              <img class="brand-logo brand-logo--light" src="${asset("images/logo_full.png")}" alt="Моят Забавен Магазин">
+              <img class="brand-logo brand-logo--ink" src="${asset("images/logo_full_ink.png")}" alt="" aria-hidden="true">
             </a>
             <nav class="nav-links">${links}</nav>
             <div class="nav-actions">
@@ -130,7 +139,7 @@
             <div class="footer-grid">
               <div class="footer-brand">
                 <a href="index.html" class="footer-logo" aria-label="Моят Забавен Магазин">
-                  <img src="images/logo_full.png" alt="Моят Забавен Магазин">
+                  <img src="${asset("images/logo_full.png")}" alt="Моят Забавен Магазин">
                 </a>
                 <p>${t("Ръчно изработени подаръчни шишета с български фолклорен мотив — създадени с любов в Стара Загора, без лепила и компромиси.",
                        "Handmade gift bottles with Bulgarian folk motifs — crafted with love in Stara Zagora, without glue or compromise.")}</p>
@@ -406,17 +415,19 @@
     function setFavicon() {
         if (document.querySelector('link[rel="icon"]')) return;
         const l = document.createElement("link");
-        l.rel = "icon"; l.type = "image/png"; l.href = "images/logo_bottle.png";
+        l.rel = "icon"; l.type = "image/png"; l.href = asset("images/logo_bottle.png");
         document.head.appendChild(l);
     }
 
     /* ---------------------- Init ---------------------- */
     document.addEventListener("DOMContentLoaded", () => {
+        applyStaticAssets();
         sessionCleanup();
         setFavicon();
         buildNav();
+        applyStaticAssets();
         if (!document.body.hasAttribute("data-no-footer")) {
-            fetchContent().then(data => buildFooter(data.contacts));
+            fetchContent().then(data => { buildFooter(data.contacts); applyStaticAssets(); });
         }
         updateBadge();
         initReveal();

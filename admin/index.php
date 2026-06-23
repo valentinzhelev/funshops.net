@@ -69,6 +69,7 @@ $csrf = csrf_token();
 <!-- Toast -->
 <div class="toast-wrap" id="toastWrap"></div>
 
+<script src="../config.js"></script>
 <script>window.CSRF = <?= json_encode($csrf) ?>;</script>
 <script src="admin.js"></script>
 </body>
