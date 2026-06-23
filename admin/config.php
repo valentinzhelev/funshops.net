@@ -11,7 +11,7 @@
 const ADMIN_PASSWORD_HASH = '$2y$10$MCVWh3li/o4dY9IpW9Vu.uva0olWbxWLOSriEx84lqtb0h1Umc0cO';
 
 /* --- Имейл за поръчки --- */
-const ORDER_EMAIL_TO   = 'nedko.velikov@abv.bg';
+const ORDER_EMAIL_TO   = 'orders@funshops.net';
 const ORDER_EMAIL_FROM = 'orders@funshops.net';
 const SHOP_NAME        = 'Моят Забавен Магазин';
 

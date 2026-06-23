@@ -8,7 +8,7 @@ const ADMIN_PASSWORD_HASH = '$2y$10$MCVWh3li/o4dY9IpW9Vu.uva0olWbxWLOSriEx84lqtb
 // По подразбиране: magazin2026 — СМЕНЕТЕ на production!
 // php -r "echo password_hash('НОВА_ПАРОЛА', PASSWORD_DEFAULT);"
 
-const ORDER_EMAIL_TO   = 'nedko.velikov@abv.bg';
+const ORDER_EMAIL_TO   = 'orders@funshops.net';
 const ORDER_EMAIL_FROM = 'orders@funshops.net';
 const SHOP_NAME        = 'Моят Забавен Магазин';
 

@@ -1,10 +1,10 @@
 ---
 # cPanel → Git Version Control → Deploy HEAD Commit
 # Clone path: /home/studioje/repositories/funshops.net
-# Live path:  /home/studioje/public_html/funshops  (document root на funshops.net)
+# Live path:  /home/studioje/funshops  (document root на funshops.net)
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/studioje/public_html/funshops/
+    - export DEPLOYPATH=/home/studioje/funshops/
     - /bin/rsync -av
       --exclude '.git'
       --exclude '.github'

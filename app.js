@@ -128,7 +128,7 @@
         const c = contacts || {};
         const phone = c.phone || "+359 899 518 271";
         const phoneLink = c.phone_link || "+359899518271";
-        const email = c.email || "nedko.velikov@abv.bg";
+        const email = c.email || "orders@funshops.net";
         const address = c.address || t("Стара Загора, България", "Stara Zagora, Bulgaria");
         const hours = c.hours || "09:00 – 18:00";
         const f = document.createElement("footer");

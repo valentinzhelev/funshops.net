@@ -194,7 +194,7 @@ function default_content() {
         'contacts' => [
             'phone'      => '+359 899 518 271',
             'phone_link' => '+359899518271',
-            'email'      => 'nedko.velikov@abv.bg',
+            'email'      => 'orders@funshops.net',
             'person'     => 'Недко Димитров',
             'address'    => 'Стара Загора, България',
             'hours'      => 'Пон – Нед: 09:00 – 18:00 · Онлайн 24/7',
