@@ -234,13 +234,41 @@ switch ($action) {
         json_response(['ok' => true, 'orders' => $orders]);
     }
 
+    case 'orders_poll': {
+        $orders = read_json(ORDERS_FILE, []);
+        usort($orders, fn($a, $b) => ($b['created_at'] ?? 0) <=> ($a['created_at'] ?? 0));
+        $pending = 0;
+        $latestId = 0;
+        foreach ($orders as $o) {
+            if (($o['status'] ?? 'pending') === 'pending') $pending++;
+            $latestId = max($latestId, (int)($o['id'] ?? 0));
+        }
+        json_response(['ok' => true, 'pending' => $pending, 'total' => count($orders), 'latest_id' => $latestId, 'orders' => $orders]);
+    }
+
     case 'order_status': {
         if ($method !== 'POST') json_error('POST only');
         $b = read_body();
-        $id = (int)($b['id'] ?? 0); $status = (string)($b['status'] ?? '');
+        $id = (int)($b['id'] ?? 0);
+        $status = (string)($b['status'] ?? '');
         if (!in_array($status, ['pending','fulfilled','cancelled'], true)) json_error('Невалиден статус.');
         $orders = read_json(ORDERS_FILE, []);
-        foreach ($orders as $i => $o) if ((int)$o['id'] === $id) $orders[$i]['status'] = $status;
+        $target = null;
+        foreach ($orders as $i => $o) {
+            if ((int)$o['id'] === $id) {
+                $old = $o['status'] ?? 'pending';
+                $orders[$i]['status'] = $status;
+                $target = $orders[$i];
+                if ($status === 'cancelled' && $old !== 'cancelled') {
+                    set_products_availability(order_product_ids($target), true);
+                    clear_reservations_for_products(order_product_ids($target));
+                }
+                if ($status === 'pending' && $old === 'cancelled') {
+                    set_products_availability(order_product_ids($target), false);
+                }
+                break;
+            }
+        }
         write_json(ORDERS_FILE, $orders);
         json_response(['ok' => true]);
     }
@@ -249,7 +277,15 @@ switch ($action) {
         if ($method !== 'POST') json_error('POST only');
         $id = (int)(read_body()['id'] ?? 0);
         $orders = read_json(ORDERS_FILE, []);
-        $orders = array_values(array_filter($orders, fn($o) => (int)$o['id'] !== $id));
+        $removed = null;
+        $orders = array_values(array_filter($orders, function ($o) use ($id, &$removed) {
+            if ((int)$o['id'] === $id) { $removed = $o; return false; }
+            return true;
+        }));
+        if ($removed && in_array($removed['status'] ?? 'pending', ['pending', 'cancelled'], true)) {
+            set_products_availability(order_product_ids($removed), true);
+            clear_reservations_for_products(order_product_ids($removed));
+        }
         write_json(ORDERS_FILE, $orders);
         json_response(['ok' => true]);
     }

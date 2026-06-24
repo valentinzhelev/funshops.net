@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Количка | Моят Забавен Магазин</title>
-    <meta name="description" content="Вашата количка с избрани ръчно изработени шишета.">
+    <meta name="description" content="Вашата количка с избрани ръчно изработени бутилки.">
     <meta name="robots" content="noindex, follow">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,6 +22,10 @@
         </div>
 
         <div style="max-width:820px; margin:0 auto" class="reveal">
+            <p class="info-lead" style="text-align:center; margin-bottom:18px; font-size:.95rem">
+                Продуктите в количката се <strong>резервират за 30 минути</strong> — достатъчно време да финализирате поръчката.
+                След това резервацията изтича и бутилката отново става свободна за други клиенти.
+            </p>
             <div class="panel">
                 <div id="cartItems"></div>
                 <div id="summary"></div>
@@ -72,11 +76,11 @@ document.addEventListener("DOMContentLoaded", () => {
           <a href="order.html" class="btn btn-amber btn-block" style="margin-top:22px">Финализирай поръчката&nbsp;&nbsp;→</a>
           <a href="products.html" class="btn btn-ghost btn-block" style="margin-top:10px">Продължи пазаруването</a>`;
 
-        items.querySelectorAll(".cr-remove").forEach(btn => btn.addEventListener("click", () => {
+        items.querySelectorAll(".cr-remove").forEach(btn => btn.addEventListener("click", async () => {
             const row = btn.closest(".cart-row");
             row.style.transition = "opacity .25s, transform .25s";
             row.style.opacity = "0"; row.style.transform = "translateX(20px)";
-            setTimeout(() => { S.removeFromCart(Number(btn.dataset.id)); render(); }, 220);
+            setTimeout(async () => { await S.removeFromCart(Number(btn.dataset.id)); render(); }, 220);
         }));
     }
 

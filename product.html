@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="metaTitle">Продукт | Моят Забавен Магазин</title>
-    <meta name="description" content="Ръчно изработено шише за ракия с български фолклорен мотив.">
+    <meta name="description" content="Ръчно изработена бутилка за ракия с български фолклорен мотив.">
 
     <link rel="canonical" id="canonical" href="https://www.funshops.net/products.html">
     <meta property="og:type" content="product">
     <meta property="og:site_name" content="Моят Забавен Магазин">
     <meta property="og:locale" content="bg_BG">
-    <meta property="og:title" id="ogTitle" content="Ръчно изработено шише | Моят Забавен Магазин">
-    <meta property="og:description" id="ogDesc" content="Ръчно изработено шише за ракия с български фолклорен мотив.">
+    <meta property="og:title" id="ogTitle" content="Ръчно изработена бутилка | Моят Забавен Магазин">
+    <meta property="og:description" id="ogDesc" content="Ръчно изработена бутилка за ракия с български фолклорен мотив.">
     <meta property="og:image" id="ogImage" content="https://www.funshops.net/images/og-cover.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" id="twImage" content="https://www.funshops.net/images/og-cover.png">
@@ -90,14 +90,21 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("t2").insertAdjacentHTML("afterbegin", S.I.leaf);
     document.getElementById("t3").insertAdjacentHTML("afterbegin", S.I.shield);
 
-    S.fetchProducts().then(products => {
+    S.fetchProducts().then(async products => {
+        await S.fetchReservations();
         const p = products.find(x => x.id === id) || products[0];
         if (!p) return;
         render(p, products);
     });
+    document.addEventListener("reservations:changed", () => {
+        S.fetchReservations(true).then(() => S.fetchProducts().then(products => {
+            const p = products.find(x => x.id === id);
+            if (p) render(p, products);
+        }));
+    });
 
     function render(p, products) {
-        const titleTxt = /^\d+$/.test(String(p.name).trim()) ? "Шише № " + p.name : p.name;
+        const titleTxt = /^\d+$/.test(String(p.name).trim()) ? "Бутилка № " + p.name : p.name;
         document.getElementById("metaTitle").textContent = titleTxt + " | Моят Забавен Магазин";
         document.getElementById("bcName").textContent = titleTxt;
         document.getElementById("pdpCat").textContent = p.category;
@@ -117,24 +124,22 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("mainImgWrap").addEventListener("click", () => openLightbox(currentMain));
 
         // статус + цена + бутони
-        const sold = S.getList("soldProducts");
-        const reserved = S.getList("reservedProducts");
-        const isReserved = sold.includes(p.id) || reserved.includes(p.id);
+        const blocked = !p.available || S.isProductBlocked(p.id);
         const priceEl = document.getElementById("pdpPrice");
         const actions = document.getElementById("pdpActions");
         const statusEl = document.getElementById("pdpStatus");
 
-        if (isReserved) {
+        if (blocked) {
             priceEl.style.display = "none";
-            statusEl.innerHTML = `<div class="pdp-status">Този продукт е резервиран от друг клиент.</div>`;
+            statusEl.innerHTML = `<div class="pdp-status">${!p.available ? "Този продукт вече е продаден." : "Този продукт е резервиран от друг клиент."}</div>`;
             actions.innerHTML = `<a href="products.html" class="btn btn-ghost">← Към продуктите</a>`;
         } else {
             priceEl.innerHTML = `${p.price} <small>€</small>`;
             actions.innerHTML = `
                 <button class="btn btn-amber" id="addBtn">Добави в количката</button>
                 <a href="products.html" class="btn btn-ghost">← Назад</a>`;
-            document.getElementById("addBtn").addEventListener("click", () => {
-                if (S.addToCart(p)) renderStatusAfterAdd();
+            document.getElementById("addBtn").addEventListener("click", async () => {
+                if (await S.addToCart(p)) renderStatusAfterAdd();
             });
         }
 
@@ -161,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const url = "https://www.funshops.net/product.html?id=" + p.id;
         const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
         const imgAbs = img ? S.asset(img) : "https://www.funshops.net/images/og-cover.png";
-        const desc = (p.description || (titleTxt + " — ръчно изработено шише с български фолклорен мотив.")).slice(0, 200);
+        const desc = (p.description || (titleTxt + " — ръчно изработена бутилка с български фолклорен мотив.")).slice(0, 200);
         const set = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
         set("canonical", "href", url);
         set("ogTitle", "content", titleTxt + " | Моят Забавен Магазин");
@@ -170,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
         set("twImage", "content", imgAbs);
         document.querySelector('meta[name="description"]').setAttribute("content", desc);
 
-        const reserved = S.getList("soldProducts").concat(S.getList("reservedProducts")).includes(p.id);
+        const unavailable = !p.available || S.isProductBlocked(p.id);
         const ld = {
             "@context": "https://schema.org",
             "@type": "Product",
@@ -184,7 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 "url": url,
                 "priceCurrency": "EUR",
                 "price": Number(p.price).toFixed(2),
-                "availability": reserved ? "https://schema.org/OutOfStock" : "https://schema.org/InStock"
+                "availability": unavailable ? "https://schema.org/OutOfStock" : "https://schema.org/InStock"
             }
         };
         let s = document.getElementById("ldProduct");
@@ -232,11 +237,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function renderRelated(p, products) {
-        const sold = S.getList("soldProducts");
-        const reserved = S.getList("reservedProducts");
-        let rel = products.filter(x => x.available && x.id !== p.id && x.category === p.category && !sold.includes(x.id) && !reserved.includes(x.id));
+        let rel = products.filter(x => x.available && x.id !== p.id && x.category === p.category && !S.isProductBlocked(x.id));
         if (rel.length < 4) {
-            products.filter(x => x.available && x.id !== p.id && !rel.includes(x) && !sold.includes(x.id) && !reserved.includes(x.id))
+            products.filter(x => x.available && x.id !== p.id && !rel.includes(x) && !S.isProductBlocked(x.id))
                 .forEach(x => { if (rel.length < 4) rel.push(x); });
         }
         rel = rel.slice(0, 4);

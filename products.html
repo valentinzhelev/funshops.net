@@ -1,17 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Продукти – ръчно изработени шишета | Моят Забавен Магазин</title>
-    <meta name="description" content="Каталог с ръчно изработени шишета за ракия с български фолклорен мотив. Филтрирай по категория, търси и поръчай онлайн.">
+    <title>Продукти – ръчно изработени бутилки | Моят Забавен Магазин</title>
+    <meta name="description" content="Каталог с ръчно изработени бутилки за ракия с български фолклорен мотив. Филтрирай по категория, търси и поръчай онлайн.">
 
     <link rel="canonical" href="https://www.funshops.net/products.html">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Моят Забавен Магазин">
     <meta property="og:locale" content="bg_BG">
-    <meta property="og:title" content="Продукти – ръчно изработени шишета | Моят Забавен Магазин">
-    <meta property="og:description" content="Каталог с ръчно изработени шишета за ракия с български фолклорен мотив. Филтрирай, търси и поръчай онлайн.">
+    <meta property="og:title" content="Продукти – ръчно изработени бутилки | Моят Забавен Магазин">
+    <meta property="og:description" content="Каталог с ръчно изработени бутилки за ракия с български фолклорен мотив. Филтрирай, търси и поръчай онлайн.">
     <meta property="og:url" content="https://www.funshops.net/products.html">
     <meta property="og:image" content="https://www.funshops.net/images/og-cover.png">
     <meta property="og:image:width" content="1200">
@@ -32,7 +32,7 @@
         <div class="catalog-head">
             <span class="eyebrow center reveal">Колекцията</span>
             <h1 class="reveal d1"><span class="script">Нашите</span> продукти</h1>
-            <p class="info-lead reveal d2" style="margin:14px auto 0">Всяко шише е ръчно изработено и налично в единствен брой. Изберете категория или потърсете любимия си модел.</p>
+            <p class="info-lead reveal d2" style="margin:14px auto 0">Всяка бутилка е ръчно изработена и налична в единствен брой. При добавяне в количката се резервира за <strong>30 минути</strong>.</p>
         </div>
 
         <div class="catalog-layout">
@@ -43,7 +43,7 @@
                     <h3>Категории</h3>
                     <div class="search-box">
                         <span id="searchIcon"></span>
-                        <input type="search" id="searchInput" placeholder="Търси шише…" aria-label="Търсене">
+                        <input type="search" id="searchInput" placeholder="Търси бутилка…" aria-label="Търсене">
                         <button type="button" class="search-clear" id="searchClear" aria-label="Изчисти търсенето" hidden></button>
                     </div>
                     <div class="cat-list" id="catList"></div>
@@ -114,11 +114,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     renderSkeleton();
 
-    Promise.all([S.fetchProducts(), S.fetchCategories()]).then(([p, c]) => {
+    Promise.all([S.fetchProducts(), S.fetchCategories(), S.fetchReservations()]).then(([p, c]) => {
         products = p;
         categories = c;
         renderCats();
         render();
+    });
+    document.addEventListener("reservations:changed", () => {
+        S.fetchReservations(true).then(() => { renderCats(); render(); });
     });
 
     function renderSkeleton() {
@@ -135,11 +138,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function visiblePool() {
-        const sold = S.getList("soldProducts");
-        const reserved = S.getList("reservedProducts");
         return products.filter(p => p.available).map(p => ({
             ...p,
-            _status: sold.includes(p.id) || reserved.includes(p.id) ? "reserved" : "ok"
+            _status: S.isProductBlocked(p.id) ? "reserved" : "ok"
         }));
     }
 
@@ -254,7 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const reserved = p._status === "reserved";
         const title = S.productTitle(p.name);
         const foot = reserved
-            ? `<div class="pc-status">Резервиран</div>`
+            ? `<div class="pc-status">Резервирана от друг клиент</div>`
             : `<div class="pc-foot">
                  <span class="pc-price">${p.price} <small>€</small></span>
                  <button class="btn btn-amber btn-sm pc-add" data-id="${p.id}">Добави</button>
@@ -274,13 +275,13 @@ document.addEventListener("DOMContentLoaded", () => {
         </article>`;
     }
 
-    document.getElementById("grid").addEventListener("click", e => {
-        const btn = e.target.closest(".pc-add");
-        if (!btn) return;
-        e.preventDefault();
-        const p = products.find(x => x.id === Number(btn.dataset.id));
-        if (p && S.addToCart(p)) { renderCats(); render(); }
-    });
+        grid.querySelectorAll(".pc-add").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                const p = products.find(x => x.id === Number(btn.dataset.id));
+                if (p && (await S.addToCart(p))) { renderCats(); render(); }
+            });
+        });
 
     // Търсене (с дебоунс)
     let tmr;

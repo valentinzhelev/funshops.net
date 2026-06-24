@@ -52,6 +52,12 @@ $orders = read_json(ORDERS_FILE, []);
 $orders[] = $order;
 write_json(ORDERS_FILE, $orders);
 
+$pids = order_product_ids($order);
+if ($pids) {
+    set_products_availability($pids, false);
+    clear_reservations_for_products($pids);
+}
+
 /* Имейл известие (best-effort) */
 $settings = read_json(SETTINGS_FILE, default_settings());
 if (!empty($settings['email_notifications'])) {
@@ -77,5 +83,7 @@ if (!empty($settings['email_notifications'])) {
     }
     @mail(ORDER_EMAIL_TO, $subject, $body, $headers);
 }
+
+notify_new_order($order);
 
 echo json_encode(['ok' => true, 'id' => $order['id']]);

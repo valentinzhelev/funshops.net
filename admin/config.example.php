@@ -12,6 +12,14 @@ const ORDER_EMAIL_TO   = 'orders@funshops.net';
 const ORDER_EMAIL_FROM = 'orders@funshops.net';
 const SHOP_NAME        = 'Моят Забавен Магазин';
 
+/* Резервация в количка (минути) */
+const RESERVATION_MINUTES = 30;
+
+/* Известия на телефон — попълнете едно от двете (или и двете) */
+const TELEGRAM_BOT_TOKEN = '';  /* @BotFather → нов бот → токен */
+const TELEGRAM_CHAT_ID   = '';  /* вашият chat id (число) */
+const NTFY_TOPIC         = '';  /* ntfy.sh — абонирайте се в приложението */
+
 define('ADMIN_DIR', __DIR__);
 define('ROOT_DIR',  dirname(__DIR__));
 define('DATA_DIR',  __DIR__ . '/data');
@@ -21,9 +29,10 @@ define('UVOD_FILE',         ROOT_DIR . '/uvod.json');
 define('CONTENT_FILE',      ROOT_DIR . '/content.json');
 define('CATEGORIES_FILE',   DATA_DIR . '/categories.json');
 define('CATEGORIES_MIRROR', ROOT_DIR . '/categories.json');
-define('ORDERS_FILE',       DATA_DIR . '/orders.json');
-define('VISITS_FILE',       DATA_DIR . '/visits.json');
-define('SETTINGS_FILE',     DATA_DIR . '/settings.json');
+define('ORDERS_FILE',        DATA_DIR . '/orders.json');
+define('VISITS_FILE',        DATA_DIR . '/visits.json');
+define('SETTINGS_FILE',      DATA_DIR . '/settings.json');
+define('RESERVATIONS_FILE',  DATA_DIR . '/reservations.json');
 
 define('IMAGES_DIR', ROOT_DIR . '/images');
 define('VIDEOS_DIR', ROOT_DIR . '/videos');

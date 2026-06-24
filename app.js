@@ -35,6 +35,59 @@
     function getList(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch (e) { return []; } }
     function setJSON(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
 
+    const RES_TTL_MIN = 30;
+    let reservationsCache = [];
+    let reservationsPromise = null;
+
+    function getSessionId() {
+        let id = localStorage.getItem("shopSessionId");
+        if (!id || id.length < 8) {
+            id = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 11);
+            localStorage.setItem("shopSessionId", id);
+        }
+        return id;
+    }
+
+    async function fetchReservations(force) {
+        if (reservationsPromise && !force) return reservationsPromise;
+        reservationsPromise = fetch("reserve.php?session_id=" + encodeURIComponent(getSessionId()) + "&nocache=" + Date.now())
+            .then(r => r.json())
+            .then(d => {
+                reservationsCache = (d.ok && d.reservations) ? d.reservations : [];
+                return reservationsCache;
+            })
+            .catch(() => reservationsCache);
+        return reservationsPromise;
+    }
+
+    function isReservedByOther(productId) {
+        return reservationsCache.some(r => r.product_id === productId && !r.mine);
+    }
+
+    function isReservedByMe(productId) {
+        return reservationsCache.some(r => r.product_id === productId && r.mine);
+    }
+
+    function isProductBlocked(productId) {
+        return isReservedByOther(productId) || getList("soldProducts").includes(productId);
+    }
+
+    async function reserveApi(body) {
+        const res = await fetch("reserve.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(Object.assign({ session_id: getSessionId() }, body))
+        });
+        return res.json();
+    }
+
+    async function syncCartReservations() {
+        const ids = getCart().map(i => i.id);
+        const d = await reserveApi({ action: "sync", product_ids: ids });
+        if (d.ok && d.reservations) reservationsCache = d.reservations;
+        return d;
+    }
+
     /* ---------------------- Иконки (SVG) ---------------------- */
     const I = {
         bottle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4v3l1.2 2.4a4 4 0 0 1 .8 2.4V20a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V9.8a4 4 0 0 1 .8-2.4L10 5z"/><path d="M8.6 13h6.8"/></svg>',
@@ -141,7 +194,7 @@
                 <a href="index.html" class="footer-logo" aria-label="Моят Забавен Магазин">
                   <img src="${asset("images/logo_full.png")}" alt="Моят Забавен Магазин">
                 </a>
-                <p>${t("Ръчно изработени подаръчни шишета с български фолклорен мотив — създадени с любов в Стара Загора, без лепила и компромиси.",
+                <p>${t("Ръчно изработени подаръчни бутилки с български фолклорен мотив — създадени с любов в Стара Загора, без лепила и компромиси.",
                        "Handmade gift bottles with Bulgarian folk motifs — crafted with love in Stara Zagora, without glue or compromise.")}</p>
               </div>
               <div class="footer-col">
@@ -200,32 +253,36 @@
         renderDrawer();
     }
 
-    function addToCart(product) {
+    async function addToCart(product) {
         const cart = getCart();
-        const reserved = getList("reservedProducts");
-        const sold = getList("soldProducts");
-        if (sold.includes(product.id) || reserved.includes(product.id)) {
-            toast(t("Този продукт вече е резервиран.", "This product is already reserved."), "warn");
+        if (isProductBlocked(product.id)) {
+            toast(t("Този продукт е резервиран от друг клиент.", "This product is reserved by another customer."), "warn");
             return false;
         }
         if (cart.some(i => i.id === product.id)) {
             toast(t("Вече е в количката.", "Already in your cart."), "warn");
             return false;
         }
+        const hold = await reserveApi({ action: "hold", product_id: product.id });
+        if (!hold.ok) {
+            await fetchReservations(true);
+            toast(hold.error || t("Неуспешна резервация.", "Reservation failed."), "warn");
+            return false;
+        }
         const firstImage = (product.images || []).find(s => !String(s).endsWith(".mp4")) || (product.images || [])[0];
         cart.push({ id: product.id, title: product.name, price: parseFloat(product.price), image: firstImage });
-        reserved.push(product.id);
         setJSON("cart", cart);
-        setJSON("reservedProducts", reserved);
+        await fetchReservations(true);
         updateBadge(true);
-        toast(t("Добавено в количката!", "Added to cart!"), "ok");
+        toast(t("Добавено в количката! Резервацията е за " + RES_TTL_MIN + " мин.", "Added to cart! Reserved for " + RES_TTL_MIN + " min."), "ok");
         openDrawer();
         return true;
     }
 
-    function removeFromCart(id) {
+    async function removeFromCart(id) {
         setJSON("cart", getCart().filter(i => i.id !== id));
-        setJSON("reservedProducts", getList("reservedProducts").filter(p => p !== id));
+        await reserveApi({ action: "release", product_id: id });
+        await fetchReservations(true);
         updateBadge();
         document.dispatchEvent(new CustomEvent("cart:changed"));
     }
@@ -364,7 +421,7 @@
     function sessionCleanup() {
         if (!sessionStorage.getItem("sessionActive")) {
             localStorage.removeItem("cart");
-            localStorage.removeItem("reservedProducts");
+            reserveApi({ action: "clear" }).catch(() => {});
         }
         sessionStorage.setItem("sessionActive", "true");
     }
@@ -401,9 +458,10 @@
 
     /* ---------------------- Публичен API ---------------------- */
     window.Shop = {
-        asset, t, money, LANG, I,
-        getCart, getList,
-        addToCart, removeFromCart, updateBadge,
+        asset, t, money, LANG, I, RES_TTL_MIN,
+        getCart, getList, getSessionId,
+        fetchReservations, isReservedByOther, isReservedByMe, isProductBlocked,
+        addToCart, removeFromCart, updateBadge, syncCartReservations,
         openDrawer, closeDrawer,
         toast, observeNew,
         fetchProducts, fetchCategories, fetchContent,
@@ -430,6 +488,8 @@
             fetchContent().then(data => { buildFooter(data.contacts); applyStaticAssets(); });
         }
         updateBadge();
+        fetchReservations().then(() => syncCartReservations()).catch(() => {});
+        setInterval(() => fetchReservations(true).then(() => document.dispatchEvent(new CustomEvent("reservations:changed"))), 45000);
         initReveal();
         initCounters();
         initCookies();

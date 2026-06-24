@@ -172,19 +172,191 @@ function bunny_delete($remotePath) {
 /** Гарантира съществуване на дата файловете със стойности по подразбиране. */
 function ensure_data_files() {
     if (!is_dir(DATA_DIR)) @mkdir(DATA_DIR, 0775, true);
-    if (!file_exists(ORDERS_FILE))   write_json(ORDERS_FILE, []);
-    if (!file_exists(VISITS_FILE))   write_json(VISITS_FILE, []);
+    if (!file_exists(ORDERS_FILE))       write_json(ORDERS_FILE, []);
+    if (!file_exists(VISITS_FILE))       write_json(VISITS_FILE, []);
+    if (!file_exists(RESERVATIONS_FILE)) write_json(RESERVATIONS_FILE, []);
     if (!file_exists(CATEGORIES_FILE)) write_json(CATEGORIES_FILE, []);
     if (!file_exists(SETTINGS_FILE)) write_json(SETTINGS_FILE, default_settings());
     if (!file_exists(CONTENT_FILE)) write_content(default_content());
     if (!file_exists(UVOD_FILE)) write_json(UVOD_FILE, ['content' => default_uvod_html()]);
 }
 
+function reservation_ttl_seconds() {
+    $min = defined('RESERVATION_MINUTES') ? (int)RESERVATION_MINUTES : 30;
+    return max(5, $min) * 60;
+}
+
+function reservation_ttl_minutes() {
+    return (int)(reservation_ttl_seconds() / 60);
+}
+
+function read_reservations() {
+    cleanup_expired_reservations();
+    return read_json(RESERVATIONS_FILE, []);
+}
+
+function write_reservations($rows) {
+    return write_json(RESERVATIONS_FILE, array_values($rows));
+}
+
+function cleanup_expired_reservations() {
+    if (!defined('RESERVATIONS_FILE')) return;
+    $now = time();
+    $rows = read_json(RESERVATIONS_FILE, []);
+    $next = array_values(array_filter($rows, fn($r) => ($r['expires_at'] ?? 0) > $now));
+    if (count($next) !== count($rows)) write_reservations($next);
+}
+
+function find_reservation($productId, $rows = null) {
+    $rows = $rows ?? read_reservations();
+    foreach ($rows as $r) {
+        if ((int)($r['product_id'] ?? 0) === (int)$productId) return $r;
+    }
+    return null;
+}
+
+function reserve_product($productId, $sessionId) {
+    $productId = (int)$productId;
+    $sessionId = sanitize_session_id($sessionId);
+    if (!$productId || !$sessionId) return ['ok' => false, 'error' => 'Невалидни данни.'];
+
+    $products = read_json(PRODUCTS_FILE, []);
+    $product = null;
+    foreach ($products as $p) {
+        if ((int)$p['id'] === $productId) { $product = $p; break; }
+    }
+    if (!$product || empty($product['available'])) return ['ok' => false, 'error' => 'Продуктът не е наличен.'];
+
+    $rows = read_reservations();
+    $existing = find_reservation($productId, $rows);
+    if ($existing && ($existing['session_id'] ?? '') !== $sessionId) {
+        return ['ok' => false, 'error' => 'Резервиран от друг клиент.'];
+    }
+
+    $expires = time() + reservation_ttl_seconds();
+    $found = false;
+    foreach ($rows as $i => $r) {
+        if ((int)($r['product_id'] ?? 0) === $productId) {
+            $rows[$i] = ['product_id' => $productId, 'session_id' => $sessionId, 'expires_at' => $expires, 'updated_at' => time()];
+            $found = true;
+            break;
+        }
+    }
+    if (!$found) $rows[] = ['product_id' => $productId, 'session_id' => $sessionId, 'expires_at' => $expires, 'updated_at' => time()];
+    write_reservations($rows);
+    return ['ok' => true];
+}
+
+function sync_session_reservations($sessionId, array $productIds) {
+    $sessionId = sanitize_session_id($sessionId);
+    if (!$sessionId) return;
+    $want = array_values(array_unique(array_filter(array_map('intval', $productIds), fn($id) => $id > 0)));
+    $rows = read_reservations();
+
+    foreach ($rows as $r) {
+        if (($r['session_id'] ?? '') === $sessionId && !in_array((int)($r['product_id'] ?? 0), $want, true)) {
+            release_product((int)$r['product_id'], $sessionId);
+        }
+    }
+    foreach ($want as $pid) {
+        reserve_product($pid, $sessionId);
+    }
+}
+
+function clear_reservations_for_products(array $productIds) {
+    $ids = array_map('intval', $productIds);
+    $rows = read_reservations();
+    $rows = array_values(array_filter($rows, fn($r) => !in_array((int)($r['product_id'] ?? 0), $ids, true)));
+    write_reservations($rows);
+}
+
+function reservations_public($sessionId = '') {
+    $sessionId = sanitize_session_id($sessionId);
+    $out = [];
+    foreach (read_reservations() as $r) {
+        $out[] = [
+            'product_id' => (int)($r['product_id'] ?? 0),
+            'expires_at' => (int)($r['expires_at'] ?? 0),
+            'mine'       => $sessionId !== '' && ($r['session_id'] ?? '') === $sessionId,
+        ];
+    }
+    return $out;
+}
+
+function sanitize_session_id($id) {
+    $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$id);
+    return strlen($id) >= 8 ? $id : '';
+}
+
+function order_product_ids($order) {
+    $ids = [];
+    foreach ($order['products'] ?? [] as $p) {
+        $id = (int)($p['id'] ?? 0);
+        if ($id > 0) $ids[] = $id;
+    }
+    return array_values(array_unique($ids));
+}
+
+function set_products_availability(array $productIds, $available) {
+    if (!$productIds) return;
+    $products = read_json(PRODUCTS_FILE, []);
+    foreach ($products as $i => $p) {
+        if (in_array((int)($p['id'] ?? 0), $productIds, true)) {
+            $products[$i]['available'] = (bool)$available;
+        }
+    }
+    write_json(PRODUCTS_FILE, $products);
+}
+
+function send_push_notification($title, $message) {
+    $title = trim((string)$title);
+    $message = trim((string)$message);
+    if ($title === '' && $message === '') return;
+
+    if (defined('TELEGRAM_BOT_TOKEN') && TELEGRAM_BOT_TOKEN !== ''
+        && defined('TELEGRAM_CHAT_ID') && TELEGRAM_CHAT_ID !== '') {
+        $text = $title . "\n\n" . $message;
+        $url = 'https://api.telegram.org/bot' . TELEGRAM_BOT_TOKEN . '/sendMessage';
+        $payload = http_build_query([
+            'chat_id' => TELEGRAM_CHAT_ID,
+            'text' => $text,
+            'parse_mode' => 'HTML',
+        ]);
+        $ctx = stream_context_create(['http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+            'content' => $payload,
+            'timeout' => 8,
+        ]]);
+        @file_get_contents($url, false, $ctx);
+    }
+
+    if (defined('NTFY_TOPIC') && NTFY_TOPIC !== '') {
+        $ctx = stream_context_create(['http' => [
+            'method' => 'POST',
+            'header' => "Title: " . $title . "\r\nPriority: high\r\nTags: bell\r\n",
+            'content' => $message,
+            'timeout' => 8,
+        ]]);
+        @file_get_contents('https://ntfy.sh/' . rawurlencode(NTFY_TOPIC), false, $ctx);
+    }
+}
+
+function notify_new_order($order) {
+    $lines = [];
+    foreach ($order['products'] ?? [] as $p) {
+        $lines[] = '• ' . ($p['title'] ?? '') . ' — ' . ($p['price'] ?? '') . ' €';
+    }
+    $body = "Име: {$order['name']}\nТел: {$order['phone']}\nИмейл: {$order['email']}\n\n"
+        . implode("\n", $lines) . "\n\nОбщо: {$order['total']} €";
+    send_push_notification('Нова поръчка — ' . SHOP_NAME, $body);
+}
+
 function default_settings() {
     return [
         'delivery' => "Доставка с куриер (Спиди / Еконт) за България — 1–3 работни дни.\nМеждународна доставка чрез Български пощи — 7–20 работни дни.",
         'payment'  => "Плащане при доставка (наложен платеж) или по банков път след уговорка.",
-        'general'  => "Моят Забавен Магазин — ръчно изработени шишета с български фолклорен мотив.",
+        'general'  => "Моят Забавен Магазин — ръчно изработени бутилки с български фолклорен мотив.",
         'email_notifications' => true
     ];
 }
@@ -211,8 +383,11 @@ function write_content($data) {
 }
 
 function default_uvod_html() {
+    $j = read_json(UVOD_FILE, null);
+    if (is_array($j) && !empty($j['content'])) return $j['content'];
     return <<<'HTML'
-<p class="lead-line reveal">Изработвам подаръчни шишета с български фолклорен мотив.</p>
+<p class="lead-line reveal"><strong>Здравейте!</strong></p>
+<p class="reveal">Изработвам подаръчни бутилки с български фолклорен мотив.</p>
 <p class="reveal">Подходящи за много поводи:</p>
 <div class="occasions">
     <span class="chip red reveal">Рожден ден</span>
@@ -222,10 +397,11 @@ function default_uvod_html() {
 </div>
 <div class="divider" style="margin:30px 0"><span>✦</span></div>
 <p class="reveal">Изработени са изцяло чисто — без лепила или други смоли. Единствено точно измерване и прецизно сглобяване.</p>
-<p class="reveal">Поставени в шишето, фигурите са здраво стегнати и заклинени. След това се измиват и пълнят с алкохол (ракия). Не плават, не мърдат, а след измиване и закисване е невъзможно да се разглобят.</p>
+<p class="reveal">Поставени в бутилката, фигурите са здраво стегнати и заклинени. След това се измиват и пълнят с алкохол (ракия). Не плават, не мърдат, а след измиване и закисване е невъзможно да се разглобят.</p>
 <p class="reveal">Дървото придава цвят на ракията — дори да се сипе бяла ракия (за предпочитане), след време тя придобива характерен жълт цвят.</p>
-<p class="reveal">Шишетата се продават сухи и неизмити, за да може да се правят корекции. Но по ваше желание могат да са измити и подготвени. След получаване се измиват с вода от прашинки и се закисват с вода или ракия.</p>
-<p class="reveal">Шишето се изработва изцяло ръчно. Отнема много време за цялата изработка, така че моля да оцените този труд. Цената за всяко е различна спрямо трудността на изработка.</p>
+<p class="reveal">Бутилките се продават сухи и неизмити, за да може да се правят корекции. Но по ваше желание могат да са измити и подготвени. След получаване се измиват с вода от прашинки и се закисват с вода или ракия.</p>
+<p class="reveal">Бутилката се изработва изцяло ръчно. Отнема много време за цялата изработка, така че моля да оцените този труд. Цената за всяко е различна спрямо изработката.</p>
+<p class="reveal">Изработвам и индивидуални бутилки по ваше желание и надписи, но с текст съобразен с размера на масичката и предварително уточнен с мен по телефона или съобщение.</p>
 <p class="reveal">За въпроси относно наличности, допълнителни снимки или цени — моля, изпратете съобщение. Разгледайте снимките и ако харесате нещо, пишете.</p>
 <p class="lead-line reveal" style="margin-top:26px">Очаквам вашите поръчки и благодаря за отделеното време!</p>
 <div style="text-align:center; margin-top:34px" class="reveal">

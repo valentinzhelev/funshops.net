@@ -211,6 +211,17 @@ textarea.input { resize: vertical; min-height: 90px; }
 .order-top .o-total { margin-left: auto; font-weight: 800; color: var(--brand-deep); font-size: 1.1rem; }
 .order-detail { padding: 0 18px 16px; display: none; }
 .order-card.open .order-detail { display: block; }
+.order-card.is-new { animation: orderFlash 1.2s ease-in-out 3; border-color: var(--amber); box-shadow: 0 0 0 3px rgba(217,154,43,.25); }
+@keyframes orderFlash { 0%,100%{ background:#fff } 50%{ background:#fff8e8 } }
+#ordBadge.pulse { animation: badgePulse 1.5s ease-in-out infinite; }
+@keyframes badgePulse { 0%,100%{ transform: scale(1) } 50%{ transform: scale(1.15) } }
+.tip-btn { position: relative; cursor: help; }
+.tip-btn[data-tip]:hover::after {
+    content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20;
+    width: max(220px, 100%); max-width: 320px; padding: 10px 12px; border-radius: 10px;
+    background: var(--ink); color: #fff; font-size: .78rem; font-weight: 500; line-height: 1.45;
+    box-shadow: var(--shadow-lg); pointer-events: none;
+}
 .order-products { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
 .order-products .op { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--bg); border-radius: 8px; }
 .order-info-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 10px; margin-top: 10px; }

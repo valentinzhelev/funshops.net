@@ -28,9 +28,15 @@ define('CATEGORIES_MIRROR', ROOT_DIR . '/categories.json'); // резервно 
 define('ORDERS_FILE',       DATA_DIR . '/orders.json');
 define('VISITS_FILE',       DATA_DIR . '/visits.json');
 define('SETTINGS_FILE',     DATA_DIR . '/settings.json');
+define('RESERVATIONS_FILE', DATA_DIR . '/reservations.json');
 
 define('IMAGES_DIR', ROOT_DIR . '/images');
 define('VIDEOS_DIR', ROOT_DIR . '/videos');
+
+const RESERVATION_MINUTES = 30;
+const TELEGRAM_BOT_TOKEN = '';
+const TELEGRAM_CHAT_ID   = '';
+const NTFY_TOPIC         = '';
 
 /* --- Разрешени файлови формати при качване --- */
 const ALLOWED_IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif'];

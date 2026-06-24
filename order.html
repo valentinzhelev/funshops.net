@@ -157,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ["name", "phone", "email", "city", "address"].forEach(id =>
         $(id).addEventListener("input", () => setErr(id, "")));
 
-    $("confirmBtn").addEventListener("click", () => {
+    $("confirmBtn").addEventListener("click", async () => {
         const cart = S.getCart();
         if (!cart.length) { S.toast("Количката е празна.", "warn"); return; }
         if (!validate()) {
@@ -167,6 +167,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        await S.syncCartReservations();
+        if (S.getCart().some(i => S.isProductBlocked(i.id))) {
+            S.toast("Някой продукт вече не е наличен. Проверете количката.", "warn");
+            loadOrder();
+            return;
+        }
+
+        const freshCart = S.getCart();
         const order = {
             id: Date.now(),
             name: $("name").value.trim(),
@@ -176,8 +184,8 @@ document.addEventListener("DOMContentLoaded", () => {
             city: isPickup() ? "Стара Загора" : $("city").value.trim(),
             address: isPickup() ? "Лично предаване" : $("address").value.trim(),
             comment: $("comment").value.trim(),
-            products: cart,
-            total: cart.reduce((s, i) => s + Number(i.price), 0),
+            products: freshCart,
+            total: freshCart.reduce((s, i) => s + Number(i.price), 0),
             date: new Date().toLocaleString()
         };
 
@@ -185,21 +193,22 @@ document.addEventListener("DOMContentLoaded", () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(order)
-        }).then(r => r.text()).then(r => console.log("Server:", r)).catch(e => console.error(e));
-
-        const sold = S.getList("soldProducts");
-        cart.forEach(i => { if (!sold.includes(i.id)) sold.push(i.id); });
-        localStorage.setItem("soldProducts", JSON.stringify(sold));
-        localStorage.removeItem("cart");
-        localStorage.removeItem("reservedProducts");
-        S.updateBadge();
-
-        $("orderSection").style.display = "none";
-        $("thankName").textContent = "Благодарим за поръчката, " + order.name + "!";
-        const ty = $("thankyou");
-        ty.style.display = "block";
-        ty.classList.add("in");
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        }).then(r => r.json()).then(async d => {
+            if (!d.ok) throw new Error(d.error || "Грешка");
+            localStorage.removeItem("cart");
+            await fetch("reserve.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "clear", session_id: S.getSessionId() })
+            }).catch(() => {});
+            S.updateBadge();
+            $("orderSection").style.display = "none";
+            $("thankName").textContent = "Благодарим за поръчката, " + order.name + "!";
+            const ty = $("thankyou");
+            ty.style.display = "block";
+            ty.classList.add("in");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }).catch(() => S.toast("Грешка при запис на поръчката. Опитайте отново.", "warn"));
     });
 
     loadOrder();

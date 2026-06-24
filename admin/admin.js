@@ -580,16 +580,20 @@
               <button data-s="fulfilled">Изпълнени</button>
               <button data-s="cancelled">Отказани</button>
             </div>
+            <span class="hint" style="margin-left:auto">Обновява се автоматично на всеки 8 сек.</span>
           </div>
           <div id="ordList"></div>`;
         let filter = "all";
-        const render = () => {
+        let highlightId = 0;
+        const render = (flashNew, hiId) => {
+            if (hiId) highlightId = hiId;
             const list = orders.filter(o => filter === "all" || (o.status || "pending") === filter);
             const wrap = document.getElementById("ordList");
             if (!list.length) { wrap.innerHTML = `<div class="empty">Няма поръчки в тази категория.</div>`; return; }
             wrap.innerHTML = list.map(o => {
                 const st = o.status || "pending";
-                return `<div class="order-card" data-id="${o.id}">
+                const isNew = flashNew && highlightId && Number(o.id) === Number(highlightId);
+                return `<div class="order-card${isNew ? " is-new" : ""}" data-id="${o.id}">
                   <div class="order-top">
                     <span class="badge ${st}">${ST[st]}</span>
                     <div><div class="o-name">${esc(o.name)}</div><div class="o-meta">${esc(o.date || "")} · ${o.products.length} продукта</div></div>
@@ -607,10 +611,10 @@
                       <div><b>Коментар</b>${esc(o.comment) || "—"}</div>
                     </div>
                     <div class="row-gap" style="margin-top:14px">
-                      <button class="btn btn-green btn-sm" data-st="fulfilled" data-id="${o.id}">${svg("check",16)} Изпълнена</button>
-                      <button class="btn btn-ghost btn-sm" data-st="pending" data-id="${o.id}">Върни в очакване</button>
-                      <button class="btn btn-outline btn-sm" data-st="cancelled" data-id="${o.id}">Откажи</button>
-                      <button class="btn btn-danger btn-sm" data-del="${o.id}" style="margin-left:auto">${svg("trash",16)} Изтрий</button>
+                      <button class="btn btn-green btn-sm" data-st="fulfilled" data-id="${o.id}" title="Маркирай поръчката като изпълнена">${svg("check",16)} Изпълнена</button>
+                      <button class="btn btn-ghost btn-sm tip-btn" data-st="pending" data-id="${o.id}" data-tip="Връща поръчката в списъка с нови поръчки. Продуктите остават заети, докато не откажете поръчката.">Върни в очакване</button>
+                      <button class="btn btn-outline btn-sm" data-st="cancelled" data-id="${o.id}" title="Отказва поръчката и освобождава бутилките за други клиенти">Откажи</button>
+                      <button class="btn btn-danger btn-sm" data-del="${o.id}" style="margin-left:auto" title="Премахва поръчката от списъка. При очакваща/отказана поръчка освобождава бутилките.">${svg("trash",16)} Изтрий</button>
                     </div>
                   </div>
                 </div>`;
@@ -619,24 +623,39 @@
             wrap.querySelectorAll(".o-expand").forEach(b => b.addEventListener("click", () => b.closest(".order-card").classList.toggle("open")));
             wrap.querySelectorAll("[data-st]").forEach(b => b.addEventListener("click", async () => {
                 await api("order_status", { body: { id: Number(b.dataset.id), status: b.dataset.st } });
-                const o = orders.find(x => x.id === Number(b.dataset.id)); o.status = b.dataset.st; toast("Статусът е обновен."); render(); updateOrderBadge(orders);
+                const o = orders.find(x => x.id === Number(b.dataset.id)); o.status = b.dataset.st;
+                toast(b.dataset.st === "cancelled" ? "Поръчката е отказана. Бутилките са свободни." : "Статусът е обновен.");
+                render();
+                updateOrderBadge(orders);
             }));
             wrap.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
                 if (!confirm("Изтриване на поръчката?")) return;
                 await api("order_delete", { body: { id: Number(b.dataset.del) } });
-                orders = orders.filter(x => x.id !== Number(b.dataset.del)); toast("Изтрита."); render(); updateOrderBadge(orders);
+                orders = orders.filter(x => x.id !== Number(b.dataset.del));
+                toast("Поръчката е изтрита.");
+                render();
+                updateOrderBadge(orders);
             }));
+            if (flashNew) setTimeout(() => wrap.querySelectorAll(".order-card.is-new").forEach(c => c.classList.remove("is-new")), 8000);
         };
+        window.__ordersRender = render;
         document.querySelectorAll("#ordFilter button").forEach(b => b.addEventListener("click", () => {
             document.querySelectorAll("#ordFilter button").forEach(x => x.classList.remove("active"));
             b.classList.add("active"); filter = b.dataset.s; render();
         }));
         render(); updateOrderBadge(orders);
+        window.__ordersRefresh = async (flash, hiId) => {
+            const fresh = await api("orders_list");
+            orders = fresh.orders;
+            render(flash, hiId);
+            updateOrderBadge(orders);
+        };
     };
     function updateOrderBadge(orders) {
         const pending = orders.filter(o => (o.status || "pending") === "pending").length;
         const b = document.getElementById("ordBadge");
         b.hidden = pending === 0; b.textContent = pending;
+        b.classList.toggle("pulse", pending > 0);
     }
 
     /* =========================================================
@@ -688,6 +707,12 @@
                 <div class="field"><label>Информация за плащане</label><textarea class="input" id="setPayment" rows="3">${esc(s.payment)}</textarea></div>
                 <div class="field"><label>Общо описание</label><textarea class="input" id="setGeneral" rows="3">${esc(s.general)}</textarea></div>
                 <div class="field"><label class="switch"><input type="checkbox" id="setEmail" ${s.email_notifications ? "checked" : ""}><span class="track"></span> Имейл известия за нови поръчки</label></div>
+                <div class="hint" style="margin-top:14px; line-height:1.5">
+                  <strong>Известия на телефон:</strong> в <code>admin/config.php</code> попълнете
+                  <strong>Telegram</strong> (бот + chat id) или <strong>ntfy.sh</strong> topic.
+                  Telegram: @BotFather → нов бот → chat id от @userinfobot.
+                  ntfy: инсталирайте приложението → абонирайте се за topic → сложете същото име в config.
+                </div>
               </div>
             </div>
           </div>
@@ -730,8 +755,23 @@
     /* ---------------------- Старт ---------------------- */
     document.getElementById("todayLabel").textContent = new Date().toLocaleDateString("bg-BG", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     hydrateIcons(document);
-    // фон: обнови значката за поръчки
-    api("orders_list").then(d => updateOrderBadge(d.orders)).catch(() => {});
+    let lastPollLatestId = 0;
+    async function pollOrdersLive() {
+        try {
+            const d = await api("orders_poll");
+            const hasNew = lastPollLatestId > 0 && d.latest_id > lastPollLatestId;
+            lastPollLatestId = d.latest_id || lastPollLatestId;
+            updateOrderBadge(d.orders || []);
+            if (hasNew) {
+                toast("Нова поръчка!", "ok");
+                if (location.hash === "#orders" && typeof window.__ordersRefresh === "function") {
+                    window.__ordersRefresh(true, d.latest_id);
+                }
+            }
+        } catch (e) { /* ignore */ }
+    }
+    api("orders_poll").then(d => { lastPollLatestId = d.latest_id || 0; updateOrderBadge(d.orders || []); }).catch(() => {});
+    setInterval(pollOrdersLive, 8000);
     if (!location.hash) location.hash = "dashboard";
     route();
 })();
