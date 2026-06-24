@@ -519,6 +519,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; line-height
 .pdp-tags .tag { padding: 6px 14px; border-radius: 999px; background: var(--cream); font-size: .82rem; font-weight: 700; color: var(--ink-soft); }
 .pdp-status { padding: 14px 18px; border-radius: var(--r); background: rgba(207,23,48,.1); color: var(--bg-red-deep);
     font-weight: 800; text-align: center; margin: 16px 0; }
+.pdp-status.ok { background: rgba(46,125,50,.12); color: #2e7d32; }
 
 /* Lightbox */
 .lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(20,13,7,.94); display: none; place-items: center; }

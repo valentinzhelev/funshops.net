@@ -218,16 +218,21 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("ic-bottle").innerHTML = S.I.bottle;
     document.getElementById("ic-globe").innerHTML = S.I.globe;
 
-    Promise.all([S.fetchProducts(), S.fetchCategories(), S.fetchReservations()]).then(([products, categories]) => {
+    let categories = [];
+    Promise.all([S.fetchProducts(), S.fetchCategories(), S.fetchReservations()]).then(([products, cats]) => {
+        categories = cats;
         renderFeatured(products);
         renderCats(products, categories);
     });
     document.addEventListener("reservations:changed", () => {
-        S.fetchProducts().then(products => renderFeatured(products));
+        S.fetchProducts().then(products => { renderFeatured(products); renderCats(products, categories); });
+    });
+    document.addEventListener("cart:changed", () => {
+        S.fetchProducts().then(products => { renderFeatured(products); renderCats(products, categories); });
     });
 
     function renderFeatured(products) {
-        const pool = products.filter(p => p.available && !S.isProductBlocked(p.id)
+        const pool = products.filter(p => p.available && !S.isProductBlocked(p.id) && !S.isCatalogHidden(p.id)
             && /бутилк/i.test(p.category));
         const pick = [];
         const seen = new Set();
@@ -274,7 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderCats(products, categories) {
         const counts = {};
-        products.forEach(p => { if (p.available && !S.isProductBlocked(p.id)) counts[p.category] = (counts[p.category] || 0) + 1; });
+        products.forEach(p => { if (p.available && !S.isProductBlocked(p.id) && !S.isCatalogHidden(p.id)) counts[p.category] = (counts[p.category] || 0) + 1; });
         const wrap = document.getElementById("homeCats");
         wrap.innerHTML = categories.map((c, i) => `
           <a href="products.html?cat=${encodeURIComponent(c)}" class="cat-card reveal" style="transition-delay:${(i%4)*70}ms">

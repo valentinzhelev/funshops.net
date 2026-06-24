@@ -138,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function visiblePool() {
-        return products.filter(p => p.available).map(p => ({
+        return products.filter(p => p.available && !S.isCatalogHidden(p.id)).map(p => ({
             ...p,
             _status: S.isProductBlocked(p.id) ? "reserved" : "ok"
         }));

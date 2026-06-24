@@ -102,6 +102,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (p) render(p, products);
         }));
     });
+    document.addEventListener("cart:changed", () => {
+        S.fetchProducts().then(products => {
+            const p = products.find(x => x.id === id);
+            if (p) render(p, products);
+        });
+    });
 
     function render(p, products) {
         const titleTxt = /^\d+$/.test(String(p.name).trim()) ? "Бутилка № " + p.name : p.name;
@@ -124,6 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("mainImgWrap").addEventListener("click", () => openLightbox(currentMain));
 
         // статус + цена + бутони
+        const inCart = S.isInCart(p.id);
         const blocked = !p.available || S.isProductBlocked(p.id);
         const priceEl = document.getElementById("pdpPrice");
         const actions = document.getElementById("pdpActions");
@@ -133,6 +140,12 @@ document.addEventListener("DOMContentLoaded", () => {
             priceEl.style.display = "none";
             statusEl.innerHTML = `<div class="pdp-status">${!p.available ? "Този продукт вече е продаден." : "Този продукт е резервиран от друг клиент."}</div>`;
             actions.innerHTML = `<a href="products.html" class="btn btn-ghost">← Към продуктите</a>`;
+        } else if (inCart) {
+            priceEl.innerHTML = `${p.price} <small>€</small>`;
+            statusEl.innerHTML = `<div class="pdp-status ok">Резервирана за вас — в количката (${S.RES_TTL_MIN} мин.)</div>`;
+            actions.innerHTML = `
+                <a href="cart.html" class="btn btn-green">Към количката →</a>
+                <a href="products.html" class="btn btn-ghost">← Назад</a>`;
         } else {
             priceEl.innerHTML = `${p.price} <small>€</small>`;
             actions.innerHTML = `

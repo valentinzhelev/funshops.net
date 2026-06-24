@@ -68,8 +68,17 @@
         return reservationsCache.some(r => r.product_id === productId && r.mine);
     }
 
+    function isInCart(productId) {
+        const id = Number(productId);
+        return getCart().some(i => Number(i.id) === id);
+    }
+
     function isProductBlocked(productId) {
         return isReservedByOther(productId) || getList("soldProducts").includes(productId);
+    }
+
+    function isCatalogHidden(productId) {
+        return isInCart(productId) || isReservedByMe(productId);
     }
 
     async function reserveApi(body) {
@@ -279,6 +288,8 @@
         setJSON("cart", cart);
         await fetchReservations(true);
         updateBadge(true);
+        document.dispatchEvent(new CustomEvent("cart:changed"));
+        document.dispatchEvent(new CustomEvent("reservations:changed"));
         toast(t("Добавено в количката! Резервацията е за " + RES_TTL_MIN + " мин.", "Added to cart! Reserved for " + RES_TTL_MIN + " min."), "ok");
         openDrawer();
         return true;
@@ -465,7 +476,7 @@
     window.Shop = {
         asset, t, money, LANG, I, RES_TTL_MIN,
         getCart, getList, getSessionId,
-        fetchReservations, isReservedByOther, isReservedByMe, isProductBlocked,
+        fetchReservations, isReservedByOther, isReservedByMe, isProductBlocked, isInCart, isCatalogHidden,
         addToCart, removeFromCart, updateBadge, syncCartReservations,
         openDrawer, closeDrawer,
         toast, observeNew,
