@@ -32,7 +32,6 @@ $csrf = csrf_token();
             <a href="#products" class="nav-item" data-view="products"><span class="ni" data-i="box"></span>Продукти</a>
             <a href="#categories" class="nav-item" data-view="categories"><span class="ni" data-i="tag"></span>Категории</a>
             <a href="#orders" class="nav-item" data-view="orders"><span class="ni" data-i="cart"></span>Поръчки <span class="nav-badge" id="ordBadge" hidden>0</span></a>
-            <a href="#uvod" class="nav-item" data-view="uvod"><span class="ni" data-i="edit"></span>Страница Увод</a>
             <a href="#settings" class="nav-item" data-view="settings"><span class="ni" data-i="cog"></span>Настройки</a>
         </nav>
 
@@ -71,6 +70,7 @@ $csrf = csrf_token();
 
 <script src="../config.js"></script>
 <script>window.CSRF = <?= json_encode($csrf) ?>;</script>
+<script src="content-schema.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

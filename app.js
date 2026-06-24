@@ -191,13 +191,18 @@
     }
 
     /* ---------------------- Футър ---------------------- */
-    function buildFooter(contacts) {
+    function buildFooter(contacts, siteContent) {
         const c = contacts || {};
+        const site = siteContent || {};
         const phone = c.phone || "+359 899 518 271";
         const phoneLink = c.phone_link || "+359899518271";
         const email = c.email || "orders@funshops.net";
         const address = c.address || t("Стара Загора, България", "Stara Zagora, Bulgaria");
         const hours = c.hours || "09:00 – 18:00";
+        const tagline = site.footer_tagline || t(
+            "Ръчно изработени подаръчни бутилки с български фолклорен мотив — създадени с любов в Стара Загора, без лепила и компромиси.",
+            "Handmade gift bottles with Bulgarian folk motifs — crafted with love in Stara Zagora, without glue or compromise."
+        );
         const f = document.createElement("footer");
         f.className = "site-footer";
         f.innerHTML = `
@@ -208,8 +213,7 @@
                 <a href="index.html" class="footer-logo" aria-label="Моят Забавен Магазин">
                   <img src="${asset("images/logo_full.png")}" alt="Моят Забавен Магазин">
                 </a>
-                <p>${t("Ръчно изработени подаръчни бутилки с български фолклорен мотив — създадени с любов в Стара Загора, без лепила и компромиси.",
-                       "Handmade gift bottles with Bulgarian folk motifs — crafted with love in Stara Zagora, without glue or compromise.")}</p>
+                <p>${tagline}</p>
               </div>
               <div class="footer-col">
                 <h4>${t("Магазин","Shop")}</h4>
@@ -400,11 +404,24 @@
     /* ---------------------- Cookie banner ---------------------- */
     function initCookies() {
         if (localStorage.getItem("cookieAccepted")) return;
+        fetchContent().then(data => {
+            const msg = (data.site && data.site.cookie_banner) || t(
+                "Този сайт използва само основни бисквитки, за да работи коректно — например за количката.",
+                "This site uses only essential cookies to function properly — for example, for the cart."
+            );
+            showCookieBanner(msg);
+        }).catch(() => showCookieBanner(t(
+            "Този сайт използва само основни бисквитки, за да работи коректно — например за количката.",
+            "This site uses only essential cookies to function properly — for example, for the cart."
+        )));
+    }
+
+    function showCookieBanner(msg) {
+        if (localStorage.getItem("cookieAccepted") || document.querySelector(".cookie")) return;
         const c = document.createElement("div");
         c.className = "cookie";
         c.innerHTML = `
-          <p>${t("Този сайт използва само основни бисквитки, за да работи коректно — например за количката.",
-                 "This site uses only essential cookies to function properly — for example, for the cart.")}</p>
+          <p>${escHtml(msg)}</p>
           <div class="row">
             <button class="btn btn-amber btn-sm" id="ckOk">${t("Приемам","Accept")}</button>
             <a href="cookies.html" class="btn btn-ghost btn-sm">${t("Научи повече","Learn more")}</a>
@@ -458,12 +475,173 @@
             .catch(() => []);
     }
     let contentPromise = null;
-    function fetchContent() {
-        if (contentPromise) return contentPromise;
-        contentPromise = fetch("content.json?nocache=" + Date.now())
-            .then(r => r.json())
-            .catch(() => ({ contacts: {} }));
+    let contentDefaultsPromise = null;
+
+    function deepMerge(a, b) {
+        if (!a || typeof a !== "object") return b;
+        if (!b || typeof b !== "object") return a;
+        const out = Array.isArray(a) ? a.slice() : Object.assign({}, a);
+        Object.keys(b).forEach(k => {
+            if (b[k] && typeof b[k] === "object" && !Array.isArray(b[k]) && out[k] && typeof out[k] === "object" && !Array.isArray(out[k])) {
+                out[k] = deepMerge(out[k], b[k]);
+            } else if (b[k] !== undefined) {
+                out[k] = b[k];
+            }
+        });
+        return out;
+    }
+
+    function contentGet(obj, path) {
+        return String(path || "").split(".").reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function parsePipeLines(str) {
+        return String(str || "").split("\n").map(l => l.trim()).filter(Boolean).map(line => {
+            const i = line.indexOf("|");
+            if (i < 0) return { title: line, text: "" };
+            return { title: line.slice(0, i).trim(), text: line.slice(i + 1).trim() };
+        });
+    }
+
+    function applyPipeSteps(container, str) {
+        if (!container) return;
+        const steps = parsePipeLines(str);
+        container.querySelectorAll(".step, .flow-step").forEach((el, i) => {
+            if (!steps[i]) return;
+            const h = el.querySelector("h3");
+            const p = el.querySelector("p");
+            if (h) h.textContent = steps[i].title;
+            if (p) p.textContent = steps[i].text;
+        });
+    }
+
+    function applyLineList(ul, str) {
+        if (!ul) return;
+        const items = String(str || "").split("\n").map(l => l.trim()).filter(Boolean);
+        ul.innerHTML = items.map(t => `<li>${escHtml(t)}</li>`).join("");
+    }
+
+    function applyChips(container, str) {
+        if (!container) return;
+        const items = String(str || "").split("\n").map(l => l.trim()).filter(Boolean);
+        container.innerHTML = items.map((t, i) => `<span class="chip${i ? "" : ""}">${escHtml(t)}</span>`).join("");
+    }
+
+    function applyInfoCards(container, str) {
+        if (!container) return;
+        const cards = parsePipeLines(str);
+        container.querySelectorAll(".info-card").forEach((el, i) => {
+            if (!cards[i]) return;
+            const h = el.querySelector("h3");
+            const p = el.querySelector("p");
+            if (h) h.textContent = cards[i].title;
+            if (p) p.textContent = cards[i].text;
+        });
+    }
+
+    function renderLegalPlain(text) {
+        const lines = String(text || "").split("\n");
+        let html = "";
+        let buf = [];
+        const flush = () => {
+            if (buf.length) html += `<p>${escHtml(buf.join(" "))}</p>`;
+            buf = [];
+        };
+        lines.forEach(line => {
+            const m = line.match(/^===\s*(.+?)\s*===$/);
+            if (m) { flush(); html += `<h3>${escHtml(m[1])}</h3>`; return; }
+            if (!line.trim()) { flush(); return; }
+            buf.push(line.trim());
+        });
+        flush();
+        return html;
+    }
+
+    function renderUvodBody(container, u) {
+        if (!container || !u) return;
+        const chips = String(u.occasions || "").split("\n").map(l => l.trim()).filter(Boolean);
+        const chipColors = ["red", "green", "amber", "red"];
+        const bodyParas = String(u.body || "").split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+        let html = "";
+        if (u.greeting) html += `<p class="lead-line reveal"><strong>${escHtml(u.greeting)}</strong></p>`;
+        if (u.intro) html += `<p class="reveal">${escHtml(u.intro)}</p>`;
+        if (u.occasions_label) html += `<p class="reveal">${escHtml(u.occasions_label)}</p>`;
+        if (chips.length) {
+            html += `<div class="occasions">${chips.map((c, i) =>
+                `<span class="chip ${chipColors[i % chipColors.length]} reveal${i ? " d" + i : ""}">${escHtml(c)}</span>`
+            ).join("")}</div>`;
+        }
+        html += `<div class="divider" style="margin:30px 0"><span>✦</span></div>`;
+        bodyParas.forEach(p => { html += `<p class="reveal">${escHtml(p)}</p>`; });
+        if (u.closing) html += `<p class="lead-line reveal" style="margin-top:26px">${escHtml(u.closing)}</p>`;
+        html += `<div style="text-align:center;margin-top:34px" class="reveal">
+            <a href="products.html" class="btn btn-amber">Разгледай продуктите</a>
+            <a href="contacts.html" class="btn btn-ghost">Свържи се с мен</a>
+        </div>`;
+        container.innerHTML = html;
+        observeNew(container);
+    }
+
+    function applyCmsContent(data) {
+        if (!data) return;
+        document.querySelectorAll("[data-cms]").forEach(el => {
+            const val = contentGet(data, el.getAttribute("data-cms"));
+            if (val == null || val === "") return;
+            if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") el.value = val;
+            else el.textContent = val;
+        });
+        document.querySelectorAll("[data-cms-html]").forEach(el => {
+            const val = contentGet(data, el.getAttribute("data-cms-html"));
+            if (val == null || val === "") return;
+            el.innerHTML = renderLegalPlain(val);
+            observeNew(el);
+        });
+        const flowEl = document.querySelector("[data-cms-flow]");
+        if (flowEl) applyPipeSteps(flowEl, contentGet(data, flowEl.getAttribute("data-cms-flow")));
+        const stepsEl = document.querySelector("[data-cms-steps]");
+        if (stepsEl) applyPipeSteps(stepsEl, contentGet(data, stepsEl.getAttribute("data-cms-steps")));
+        const bgList = document.querySelector("[data-cms-list='delivery.bg_items']");
+        if (bgList) applyLineList(bgList, contentGet(data, "delivery.bg_items"));
+        const worldList = document.querySelector("[data-cms-list='delivery.world_items']");
+        if (worldList) applyLineList(worldList, contentGet(data, "delivery.world_items"));
+        const bgChips = document.querySelector("[data-cms-chips='delivery.bg_chips']");
+        if (bgChips) applyChips(bgChips, contentGet(data, "delivery.bg_chips"));
+        const worldChips = document.querySelector("[data-cms-chips='delivery.world_chips']");
+        if (worldChips) applyChips(worldChips, contentGet(data, "delivery.world_chips"));
+        const infoCards = document.querySelector("[data-cms-info-cards]");
+        if (infoCards) applyInfoCards(infoCards, contentGet(data, infoCards.getAttribute("data-cms-info-cards")));
+        const uvodEl = document.getElementById("uvodContent");
+        if (uvodEl && data.uvod) renderUvodBody(uvodEl, data.uvod);
+    }
+
+    function fetchContentDefaults() {
+        if (!contentDefaultsPromise) {
+            contentDefaultsPromise = fetch("content.defaults.json?nocache=" + Date.now())
+                .then(r => r.json())
+                .catch(() => ({}));
+        }
+        return contentDefaultsPromise;
+    }
+
+    function fetchContent(force) {
+        if (contentPromise && !force) return contentPromise;
+        contentPromise = Promise.all([
+            fetch("content.json?nocache=" + Date.now()).then(r => r.json()).catch(() => ({})),
+            fetchContentDefaults()
+        ]).then(([saved, defaults]) => deepMerge(defaults, saved));
         return contentPromise;
+    }
+
+    function initCms() {
+        if (!document.querySelector("[data-cms], [data-cms-html], [data-cms-flow], [data-cms-steps], #uvodContent")) return;
+        fetchContent().then(data => {
+            applyCmsContent(data);
+            document.dispatchEvent(new CustomEvent("cms:ready", { detail: data }));
+        });
     }
 
     /* ---------------------- Записване на посещение (запазено) ---------------------- */
@@ -480,7 +658,8 @@
         addToCart, removeFromCart, updateBadge, syncCartReservations,
         openDrawer, closeDrawer,
         toast, observeNew,
-        fetchProducts, fetchCategories, fetchContent,
+        fetchProducts, fetchCategories, fetchContent, fetchContentDefaults,
+        contentGet, applyCmsContent, renderLegalPlain, renderUvodBody, escHtml,
         productHref: (id) => "product.html?id=" + id,
         productTitle: (name) => /^\d+$/.test(String(name).trim()) ? "№ " + name : String(name)
     };
@@ -501,9 +680,10 @@
         buildNav();
         applyStaticAssets();
         if (!document.body.hasAttribute("data-no-footer")) {
-            fetchContent().then(data => { buildFooter(data.contacts); applyStaticAssets(); });
+            fetchContent().then(data => { buildFooter(data.contacts, data.site); applyStaticAssets(); });
         }
         updateBadge();
+        initCms();
         fetchReservations().then(() => syncCartReservations()).catch(() => {});
         setInterval(() => fetchReservations(true).then(() => document.dispatchEvent(new CustomEvent("reservations:changed"))), 45000);
         initReveal();

@@ -22,7 +22,8 @@ define('DATA_DIR',  __DIR__ . '/data');
 
 define('PRODUCTS_FILE',     ROOT_DIR . '/products.json');
 define('UVOD_FILE',         ROOT_DIR . '/uvod.json');
-define('CONTENT_FILE',      ROOT_DIR . '/content.json');
+define('CONTENT_FILE',          ROOT_DIR . '/content.json');
+define('CONTENT_DEFAULTS_FILE', ROOT_DIR . '/content.defaults.json');
 define('CATEGORIES_FILE',   DATA_DIR . '/categories.json');
 define('CATEGORIES_MIRROR', ROOT_DIR . '/categories.json'); // резервно копие за фронтенда
 define('ORDERS_FILE',       DATA_DIR . '/orders.json');

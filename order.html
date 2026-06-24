@@ -17,19 +17,19 @@
 <main class="page-shell">
     <div class="container">
         <div class="page-title" style="margin-bottom:34px">
-            <span class="eyebrow center reveal">Последна стъпка</span>
-            <h1 class="reveal d1"><span class="script">Финализирай</span> поръчката</h1>
+            <span class="eyebrow center reveal" data-cms="order.eyebrow">Последна стъпка</span>
+            <h1 class="reveal d1"><span class="script" data-cms="order.title_script">Финализирай</span> <span data-cms="order.title_main">поръчката</span></h1>
         </div>
 
         <div id="orderSection" style="max-width:900px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start">
             <div class="panel reveal">
-                <h2 style="font-size:1.4rem; margin-bottom:16px">Вашата поръчка</h2>
+                <h2 style="font-size:1.4rem; margin-bottom:16px" data-cms="order.summary_title">Вашата поръчка</h2>
                 <div id="orderItems"></div>
                 <div class="cart-summary" id="orderSummary"></div>
             </div>
 
             <div class="panel reveal d1">
-                <h2 style="font-size:1.4rem; margin-bottom:16px">Вашите данни</h2>
+                <h2 style="font-size:1.4rem; margin-bottom:16px" data-cms="order.form_title">Вашите данни</h2>
                 <div class="form-grid">
                     <div class="field full"><label for="name">Име и фамилия *</label><input id="name" type="text" autocomplete="name" placeholder="Иван Иванов"><span class="field-err" data-for="name"></span></div>
                     <div class="field"><label for="phone">Телефон *</label><input id="phone" type="tel" autocomplete="tel" placeholder="+359 88 888 8888"><span class="field-err" data-for="phone"></span></div>
@@ -53,9 +53,10 @@
                     <div class="field" id="addrField"><label for="address" id="addrLabel">Офис на куриера *</label><input id="address" type="text" autocomplete="street-address" placeholder="напр. Еконт – Идеален център"><span class="field-err" data-for="address"></span></div>
                     <div class="field full"><label for="comment">Коментар / Пожелание</label><textarea id="comment" rows="3" placeholder="Допълнителни бележки…"></textarea></div>
                 </div>
-                <button class="btn btn-amber btn-block" id="confirmBtn" style="margin-top:18px">Потвърди поръчката</button>
+                <button class="btn btn-amber btn-block" id="confirmBtn" style="margin-top:18px" data-cms="order.confirm_btn">Потвърди поръчката</button>
                 <p style="font-size:.82rem; color:var(--ink-soft); margin-top:12px; text-align:center">
-                    С потвърждаването приемате <a href="terms.html" style="color:var(--amber-deep)">Общите условия</a>.
+                    <span data-cms="order.terms_note">С потвърждаването приемате</span>
+                    <a href="terms.html" style="color:var(--amber-deep)">Общите условия</a>.
                 </p>
             </div>
         </div>
@@ -64,8 +65,8 @@
         <div id="thankyou" class="panel thankyou reveal" style="max-width:640px; margin:0 auto; display:none">
             <div class="check" id="checkIc"></div>
             <h2 id="thankName"></h2>
-            <p style="color:var(--ink-soft); margin:10px 0 24px">Ще се свържем с вас по телефон или имейл за потвърждение. Благодарим за доверието!</p>
-            <a href="index.html" class="btn btn-amber">Към магазина</a>
+            <p style="color:var(--ink-soft); margin:10px 0 24px" data-cms="order.thank_text">Ще се свържем с вас по телефон или имейл за потвърждение. Благодарим за доверието!</p>
+            <a href="index.html" class="btn btn-amber" data-cms="order.thank_btn">Към магазина</a>
         </div>
     </div>
 </main>
@@ -77,6 +78,8 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const S = window.Shop;
+    let orderCms = {};
+    document.addEventListener("cms:ready", e => { orderCms = e.detail || {}; });
     document.getElementById("checkIc").innerHTML = S.I.check;
     document.querySelectorAll(".rc-ic[data-ic]").forEach(el => { el.innerHTML = S.I[el.dataset.ic] || ""; });
 
@@ -203,7 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }).catch(() => {});
             S.updateBadge();
             $("orderSection").style.display = "none";
-            $("thankName").textContent = "Благодарим за поръчката, " + order.name + "!";
+            $("thankName").textContent = ((orderCms.order && orderCms.order.thank_title) || "Благодарим за поръчката") + ", " + order.name + "!";
             const ty = $("thankyou");
             ty.style.display = "block";
             ty.classList.add("in");

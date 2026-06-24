@@ -92,7 +92,7 @@
     async function loadCats() { const d = await api("categories_list"); CATS = d.categories; CAT_COUNTS = d.counts; return d; }
 
     /* ---------------------- Рутер ---------------------- */
-    const titles = { dashboard: "Табло", products: "Продукти", categories: "Категории", orders: "Поръчки", uvod: "Страница Увод", settings: "Настройки и контакти" };
+    const titles = { dashboard: "Табло", products: "Продукти", categories: "Категории", orders: "Поръчки", settings: "Настройки" };
     const views = {};
     function setActive(view) {
         document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
@@ -679,29 +679,40 @@
         b.classList.toggle("pulse", pending > 0);
     }
 
-    /* =========================================================
-       УВОД
-       ========================================================= */
-    views.uvod = async (root) => {
-        const d = await api("uvod_get");
-        root.innerHTML = `
-          <div class="grid-2">
-            <div class="card"><div class="card-head"><h2>Текст на „Увод“</h2>
-              <button class="btn btn-primary btn-sm" id="saveUvod">${svg("check",16)} Запази</button></div>
-              <div class="card-body"><textarea class="input" id="uvodArea" rows="20" style="font-family:ui-monospace,monospace;font-size:.86rem">${esc(d.content)}</textarea>
-              <div class="field" style="margin-top:10px"><span class="hint">HTML е позволен. Текстът се показва на страница „Увод“ в сайта.</span></div></div>
-            </div>
-            <div class="card"><div class="card-head"><h2>Преглед</h2></div>
-              <div class="card-body" id="uvodPreview" style="max-height:560px;overflow:auto"></div></div>
-          </div>`;
-        const area = document.getElementById("uvodArea");
-        const prev = document.getElementById("uvodPreview");
-        const sync = () => prev.innerHTML = area.value;
-        area.addEventListener("input", sync); sync();
-        document.getElementById("saveUvod").addEventListener("click", async () => {
-            await api("uvod_save", { body: { content: area.value } }); toast("Текстът е запазен.");
+    function contentPathGet(obj, path) {
+        return String(path).split(".").reduce((o, k) => (o && o[k] !== undefined ? o[k] : ""), obj);
+    }
+
+    function contentPathSet(obj, path, val) {
+        const parts = String(path).split(".");
+        let cur = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (!cur[parts[i]] || typeof cur[parts[i]] !== "object") cur[parts[i]] = {};
+            cur = cur[parts[i]];
+        }
+        cur[parts[parts.length - 1]] = val;
+    }
+
+    function collectContentSection(root, sectionId) {
+        const sec = (window.CONTENT_SECTIONS || []).find(s => s.id === sectionId);
+        if (!sec) return {};
+        const out = {};
+        sec.fields.forEach(f => {
+            const el = root.querySelector(`[data-content-path="${f.path}"]`);
+            if (el) contentPathSet(out, f.path, el.value);
         });
-    };
+        return out;
+    }
+
+    function buildContentField(f, content) {
+        const val = contentPathGet(content, f.path);
+        const rows = f.rows || 3;
+        const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : "";
+        if (f.type === "textarea") {
+            return `<div class="field"><label>${esc(f.label)}</label><textarea class="input" data-content-path="${esc(f.path)}" rows="${rows}">${esc(val)}</textarea>${hint}</div>`;
+        }
+        return `<div class="field"><label>${esc(f.label)}</label><input class="input" data-content-path="${esc(f.path)}" value="${esc(val)}">${hint}</div>`;
+    }
 
     /* =========================================================
        НАСТРОЙКИ
@@ -709,35 +720,34 @@
     views.settings = async (root) => {
         const [d, cd, rd] = await Promise.all([api("settings_get"), api("content_get"), api("reservations_list")]);
         const s = d.settings;
-        const c = cd.content.contacts || {};
+        const content = cd.content || {};
         const resList = rd.reservations || [];
         const resHtml = resList.length
             ? `<ul class="res-list">${resList.map(r => `<li><b>№ ${esc(r.product_name)}</b> — още ~${r.minutes_left} мин.</li>`).join("")}</ul>`
             : `<p class="hint">Няма активни резервации в колички.</p>`;
-        root.innerHTML = `
-          <div class="grid-2">
-            <div class="card"><div class="card-head"><h2>Контакти в сайта</h2><button class="btn btn-primary btn-sm" id="saveContacts">${svg("check",16)} Запази</button></div>
-              <div class="card-body">
-                <div class="field"><label>Телефон (показван)</label><input class="input" id="cPhone" value="${esc(c.phone)}"></div>
-                <div class="field"><label>Телефон (за обаждане, без интервали)</label><input class="input" id="cPhoneLink" value="${esc(c.phone_link)}"></div>
-                <div class="field"><label>Имейл</label><input class="input" id="cEmail" type="email" value="${esc(c.email)}"></div>
-                <div class="field"><label>Лице за контакт</label><input class="input" id="cPerson" value="${esc(c.person)}"></div>
-                <div class="field"><label>Адрес</label><input class="input" id="cAddress" value="${esc(c.address)}"></div>
-                <div class="field"><label>Работно време</label><input class="input" id="cHours" value="${esc(c.hours)}"></div>
-              </div>
+
+        const textSections = (window.CONTENT_SECTIONS || []).map(sec => `
+          <details class="cms-section card" open="${sec.id === "contacts" ? "open" : ""}">
+            <summary class="card-head cms-summary"><h2>${esc(sec.title)}</h2>
+              <button type="button" class="btn btn-primary btn-sm cms-save" data-section="${esc(sec.id)}">${svg("check",16)} Запази</button>
+            </summary>
+            <div class="card-body">
+              ${sec.hint ? `<p class="hint" style="margin-bottom:14px">${esc(sec.hint)}</p>` : ""}
+              ${sec.fields.map(f => buildContentField(f, content)).join("")}
             </div>
-            <div class="card"><div class="card-head"><h2>Текстове в сайта</h2><button class="btn btn-primary btn-sm" id="saveSet">${svg("check",16)} Запази</button></div>
-              <div class="card-body">
-                <div class="field"><label>Информация за доставка</label><textarea class="input" id="setDelivery" rows="4">${esc(s.delivery)}</textarea></div>
-                <div class="field"><label>Информация за плащане</label><textarea class="input" id="setPayment" rows="3">${esc(s.payment)}</textarea></div>
-                <div class="field"><label>Общо описание</label><textarea class="input" id="setGeneral" rows="3">${esc(s.general)}</textarea></div>
-                <div class="field"><label class="switch"><input type="checkbox" id="setEmail" ${s.email_notifications ? "checked" : ""}><span class="track"></span> Имейл известия за нови поръчки</label></div>
-                <div class="hint" style="margin-top:14px; line-height:1.5">
-                  <strong>Известия на телефон:</strong> в <code>admin/config.php</code> попълнете
-                  <strong>Telegram</strong> (бот + chat id) или <strong>ntfy.sh</strong> topic.
-                  Telegram: @BotFather → нов бот → chat id от @userinfobot.
-                  ntfy: инсталирайте приложението → абонирайте се за topic → сложете същото име в config.
-                </div>
+          </details>`).join("");
+
+        root.innerHTML = `
+          <p class="hint" style="margin-bottom:16px;line-height:1.55">
+            Тук редактирате <strong>само текстовете</strong> на сайта — без HTML код. За правни страници заглавията на секции се пишат като <code>===Заглавие===</code> на отделен ред.
+          </p>
+          <div class="cms-sections">${textSections}</div>
+          <div class="card section-gap"><div class="card-head"><h2>Технически настройки</h2><button class="btn btn-primary btn-sm" id="saveSet">${svg("check",16)} Запази</button></div>
+            <div class="card-body">
+              <div class="field"><label class="switch"><input type="checkbox" id="setEmail" ${s.email_notifications ? "checked" : ""}><span class="track"></span> Имейл известия за нови поръчки</label></div>
+              <div class="hint" style="margin-top:14px; line-height:1.5">
+                <strong>Известия на телефон:</strong> в <code>admin/config.php</code> попълнете
+                <strong>Telegram</strong> (бот + chat id) или <strong>ntfy.sh</strong> topic.
               </div>
             </div>
           </div>
@@ -751,26 +761,30 @@
             <button class="btn btn-danger btn-sm" id="clearReservations" ${resList.length ? "" : "disabled"}>Изчисти всички</button>
           </div>
             <div class="card-body">
-              <p class="hint" style="margin-bottom:12px">Продуктите се блокират временно, когато някой ги добави в количка. Понякога остават „висящи“ резервации след тест или затворен браузър — тогава изчистете ги тук.</p>
+              <p class="hint" style="margin-bottom:12px">Продуктите се блокират временно, когато някой ги добави в количка.</p>
               ${resHtml}
             </div>
           </div>`;
-        document.getElementById("saveContacts").addEventListener("click", async () => {
-            await api("content_save", { body: { contacts: {
-                phone: document.getElementById("cPhone").value,
-                phone_link: document.getElementById("cPhoneLink").value,
-                email: document.getElementById("cEmail").value,
-                person: document.getElementById("cPerson").value,
-                address: document.getElementById("cAddress").value,
-                hours: document.getElementById("cHours").value
-            }}});
-            toast("Контактите са запазени.");
+
+        root.querySelectorAll(".cms-save").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const sectionId = btn.dataset.section;
+                const payload = collectContentSection(root, sectionId);
+                await api("content_save", { body: payload });
+                toast("Текстовете са запазени.");
+            });
         });
+
+        root.querySelectorAll(".cms-summary").forEach(sum => {
+            sum.addEventListener("click", (e) => {
+                if (e.target.closest(".cms-save")) e.preventDefault();
+            });
+        });
+
         document.getElementById("saveSet").addEventListener("click", async () => {
             await api("settings_save", { body: {
-                delivery: document.getElementById("setDelivery").value,
-                payment: document.getElementById("setPayment").value,
-                general: document.getElementById("setGeneral").value,
                 email_notifications: document.getElementById("setEmail").checked
             }});
             toast("Настройките са запазени.");

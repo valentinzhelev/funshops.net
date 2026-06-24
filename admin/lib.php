@@ -446,7 +446,10 @@ function default_settings() {
 }
 
 function default_content() {
-    return [
+    static $defaults = null;
+    if ($defaults !== null) return $defaults;
+    $file = defined('CONTENT_DEFAULTS_FILE') ? CONTENT_DEFAULTS_FILE : (ROOT_DIR . '/content.defaults.json');
+    $defaults = read_json($file, [
         'contacts' => [
             'phone'      => '+359 899 518 271',
             'phone_link' => '+359899518271',
@@ -455,15 +458,46 @@ function default_content() {
             'address'    => 'Стара Загора, България',
             'hours'      => 'Пон – Нед: 09:00 – 18:00 · Онлайн 24/7',
         ],
-    ];
+    ]);
+    return $defaults;
+}
+
+function deep_merge_content($base, $override) {
+    if (!is_array($base)) return $override;
+    if (!is_array($override)) return $base;
+    foreach ($override as $k => $v) {
+        if (is_array($v) && isset($base[$k]) && is_array($base[$k]) && !array_is_list($v)) {
+            $base[$k] = deep_merge_content($base[$k], $v);
+        } else {
+            $base[$k] = $v;
+        }
+    }
+    return $base;
+}
+
+function sanitize_content_string($s) {
+    $s = strip_tags((string)$s);
+    $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    return trim(preg_replace("/\r\n?/", "\n", $s));
+}
+
+function sanitize_content_tree($data) {
+    if (!is_array($data)) return sanitize_content_string($data);
+    $out = [];
+    foreach ($data as $k => $v) {
+        if (is_array($v)) $out[$k] = sanitize_content_tree($v);
+        else $out[$k] = sanitize_content_string($v);
+    }
+    return $out;
 }
 
 function read_content() {
-    return read_json(CONTENT_FILE, default_content());
+    $saved = read_json(CONTENT_FILE, []);
+    return deep_merge_content(default_content(), is_array($saved) ? $saved : []);
 }
 
 function write_content($data) {
-    return write_json(CONTENT_FILE, $data);
+    return write_json(CONTENT_FILE, sanitize_content_tree($data));
 }
 
 function default_uvod_html() {

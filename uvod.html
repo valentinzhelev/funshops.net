@@ -29,13 +29,13 @@
 <main class="uvod-hero">
     <div class="container">
         <div class="page-title" style="margin-bottom:30px">
-            <h1 class="reveal d1"><span class="script">Историята</span> на майстора</h1>
+            <h1 class="reveal d1"><span class="script" data-cms="uvod.title_script">Историята</span> <span data-cms="uvod.title_main">на майстора</span></h1>
         </div>
 
         <div class="uvod-portrait reveal-zoom">
             <img src="images/nedko_dimitrov.png" alt="Недко Димитров — майсторът" loading="lazy" decoding="async">
         </div>
-        <p style="text-align:center; font-weight:800; color:var(--ink-soft)" class="reveal">Недко Димитров • Стара Загора</p>
+        <p style="text-align:center; font-weight:800; color:var(--ink-soft)" class="reveal" data-cms="uvod.master_line">Недко Димитров • Стара Загора</p>
 
         <div class="uvod-body" style="margin-top:34px" id="uvodContent">
             <p class="hint" style="text-align:center">Зареждане…</p>
@@ -47,16 +47,5 @@
 
 <script src="config.js"></script>
 <script src="app.js"></script>
-<script>
-fetch("uvod.json?nocache=" + Date.now())
-    .then(r => r.json())
-    .then(d => {
-        document.getElementById("uvodContent").innerHTML = d.content || "";
-        window.Shop && window.Shop.observeNew(document.getElementById("uvodContent"));
-    })
-    .catch(() => {
-        document.getElementById("uvodContent").innerHTML = "<p class=\"hint\" style=\"text-align:center\">Текстът не може да се зареди.</p>";
-    });
-</script>
 </body>
 </html>

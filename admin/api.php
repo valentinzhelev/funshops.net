@@ -219,12 +219,17 @@ switch ($action) {
     case 'content_save': {
         if ($method !== 'POST') json_error('POST only');
         $in = read_body();
+        unset($in['csrf']);
         $cur = read_content();
         if (isset($in['contacts']) && is_array($in['contacts'])) {
-            foreach (['phone', 'phone_link', 'email', 'person', 'address', 'hours'] as $k) {
-                if (array_key_exists($k, $in['contacts'])) {
-                    $cur['contacts'][$k] = trim((string)$in['contacts'][$k]);
-                }
+            $cur['contacts'] = deep_merge_content($cur['contacts'] ?? [], sanitize_content_tree($in['contacts']));
+            unset($in['contacts']);
+        }
+        $sections = ['site', 'home', 'uvod', 'products', 'delivery', 'contacts_page', 'cart', 'order', 'legal', 'shop'];
+        foreach ($sections as $sec) {
+            if (isset($in[$sec]) && is_array($in[$sec])) {
+                $cur[$sec] = deep_merge_content($cur[$sec] ?? [], sanitize_content_tree($in[$sec]));
+                unset($in[$sec]);
             }
         }
         write_content($cur);

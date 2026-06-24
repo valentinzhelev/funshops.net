@@ -126,6 +126,20 @@ ul { list-style: none; padding: 0; }
 .grid-2 > * { min-width: 0; }
 pre { white-space: pre-wrap; word-break: break-word; }
 .section-gap { margin-top: 22px; }
+
+.cms-sections { display: flex; flex-direction: column; gap: 14px; }
+.cms-section { overflow: hidden; }
+.cms-section > summary { list-style: none; cursor: pointer; }
+.cms-section > summary::-webkit-details-marker { display: none; }
+.cms-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cms-summary h2 { font-size: 1.05rem; }
+.cms-summary::before {
+    content: "▾";
+    margin-right: 8px;
+    color: var(--muted);
+    transition: transform .2s;
+}
+.cms-section:not([open]) > .cms-summary::before { transform: rotate(-90deg); }
 .row-gap { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
 /* Range tabs (Ден/Седмица/...) */
