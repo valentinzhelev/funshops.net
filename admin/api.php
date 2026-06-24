@@ -214,7 +214,11 @@ switch ($action) {
 
     /* ---------------------- КОНТАКТИ / САЙТ ---------------------- */
     case 'content_get':
-        json_response(['ok' => true, 'content' => read_content()]);
+        try {
+            json_response(['ok' => true, 'content' => read_content()]);
+        } catch (Throwable $e) {
+            json_error('Грешка при зареждане на текстовете: ' . $e->getMessage(), 500);
+        }
 
     case 'content_save': {
         if ($method !== 'POST') json_error('POST only');

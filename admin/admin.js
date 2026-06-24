@@ -57,7 +57,10 @@
         }
         const res = await fetch(url, init);
         if (res.status === 401) { toast("Сесията изтече. Влезте отново.", "err"); setTimeout(() => location.href = "login.php", 1200); throw new Error("401"); }
-        const data = await res.json().catch(() => ({ ok: false, error: "Невалиден отговор" }));
+        const text = await res.text();
+        let data;
+        try { data = text ? JSON.parse(text) : { ok: false, error: "Празен отговор" }; }
+        catch (e) { throw new Error("Невалиден отговор от сървъра"); }
         if (!data.ok) throw new Error(data.error || "Грешка");
         return data;
     }
@@ -727,7 +730,7 @@
             : `<p class="hint">Няма активни резервации в колички.</p>`;
 
         const textSections = (window.CONTENT_SECTIONS || []).map(sec => `
-          <details class="cms-section card" open="${sec.id === "contacts" ? "open" : ""}">
+          <details class="cms-section card"${sec.id === "contacts" ? " open" : ""}>
             <summary class="card-head cms-summary"><h2>${esc(sec.title)}</h2>
               <button type="button" class="btn btn-primary btn-sm cms-save" data-section="${esc(sec.id)}">${svg("check",16)} Запази</button>
             </summary>

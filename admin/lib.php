@@ -466,7 +466,7 @@ function deep_merge_content($base, $override) {
     if (!is_array($base)) return $override;
     if (!is_array($override)) return $base;
     foreach ($override as $k => $v) {
-        if (is_array($v) && isset($base[$k]) && is_array($base[$k]) && !array_is_list($v)) {
+        if (is_array($v) && isset($base[$k]) && is_array($base[$k])) {
             $base[$k] = deep_merge_content($base[$k], $v);
         } else {
             $base[$k] = $v;
@@ -477,7 +477,7 @@ function deep_merge_content($base, $override) {
 
 function sanitize_content_string($s) {
     $s = strip_tags((string)$s);
-    $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $s = html_entity_decode($s, ENT_QUOTES, 'UTF-8');
     return trim(preg_replace("/\r\n?/", "\n", $s));
 }
 
