@@ -114,11 +114,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     renderSkeleton();
 
+    function isHidden(id) {
+        if (typeof S.isCatalogHidden === "function") return S.isCatalogHidden(id);
+        if (typeof S.isInCart === "function") return S.isInCart(id);
+        return S.getCart().some(i => Number(i.id) === Number(id));
+    }
+
+    function showLoadError(msg) {
+        document.getElementById("resultCount").textContent = "Грешка при зареждане";
+        document.getElementById("grid").innerHTML = `<div class="empty-state" style="display:block"><p class="empty-title">${msg}</p><button class="btn btn-amber btn-sm" type="button" onclick="location.reload()">Опитай отново</button></div>`;
+    }
+
     Promise.all([S.fetchProducts(), S.fetchCategories(), S.fetchReservations()]).then(([p, c]) => {
         products = p;
         categories = c;
         renderCats();
         render();
+    }).catch(err => {
+        console.error(err);
+        showLoadError("Неуспешно зареждане на продуктите. Презаредете страницата.");
     });
     document.addEventListener("reservations:changed", () => {
         S.fetchReservations(true).then(() => { renderCats(); render(); });
@@ -138,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function visiblePool() {
-        return products.filter(p => p.available && !S.isCatalogHidden(p.id)).map(p => ({
+        return products.filter(p => p.available && !isHidden(p.id)).map(p => ({
             ...p,
             _status: S.isProductBlocked(p.id) ? "reserved" : "ok"
         }));

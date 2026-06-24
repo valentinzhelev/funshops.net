@@ -219,6 +219,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("ic-globe").innerHTML = S.I.globe;
 
     let categories = [];
+
+    function isHidden(id) {
+        if (typeof S.isCatalogHidden === "function") return S.isCatalogHidden(id);
+        if (typeof S.isInCart === "function") return S.isInCart(id);
+        return S.getCart().some(i => Number(i.id) === Number(id));
+    }
+
     Promise.all([S.fetchProducts(), S.fetchCategories(), S.fetchReservations()]).then(([products, cats]) => {
         categories = cats;
         renderFeatured(products);
@@ -232,7 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function renderFeatured(products) {
-        const pool = products.filter(p => p.available && !S.isProductBlocked(p.id) && !S.isCatalogHidden(p.id)
+        const pool = products.filter(p => p.available && !S.isProductBlocked(p.id) && !isHidden(p.id)
             && /бутилк/i.test(p.category));
         const pick = [];
         const seen = new Set();
@@ -279,7 +286,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderCats(products, categories) {
         const counts = {};
-        products.forEach(p => { if (p.available && !S.isProductBlocked(p.id) && !S.isCatalogHidden(p.id)) counts[p.category] = (counts[p.category] || 0) + 1; });
+        products.forEach(p => { if (p.available && !S.isProductBlocked(p.id) && !isHidden(p.id)) counts[p.category] = (counts[p.category] || 0) + 1; });
         const wrap = document.getElementById("homeCats");
         wrap.innerHTML = categories.map((c, i) => `
           <a href="products.html?cat=${encodeURIComponent(c)}" class="cat-card reveal" style="transition-delay:${(i%4)*70}ms">
