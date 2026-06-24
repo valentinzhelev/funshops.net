@@ -699,9 +699,13 @@
        НАСТРОЙКИ
        ========================================================= */
     views.settings = async (root) => {
-        const [d, cd] = await Promise.all([api("settings_get"), api("content_get")]);
+        const [d, cd, rd] = await Promise.all([api("settings_get"), api("content_get"), api("reservations_list")]);
         const s = d.settings;
         const c = cd.content.contacts || {};
+        const resList = rd.reservations || [];
+        const resHtml = resList.length
+            ? `<ul class="res-list">${resList.map(r => `<li><b>№ ${esc(r.product_name)}</b> — още ~${r.minutes_left} мин.</li>`).join("")}</ul>`
+            : `<p class="hint">Няма активни резервации в колички.</p>`;
         root.innerHTML = `
           <div class="grid-2">
             <div class="card"><div class="card-head"><h2>Контакти в сайта</h2><button class="btn btn-primary btn-sm" id="saveContacts">${svg("check",16)} Запази</button></div>
@@ -734,6 +738,14 @@
               <p class="hint" style="margin-bottom:14px">Изчистете кеша, ако промените не се виждат веднага в сайта.</p>
               <button class="btn btn-outline" id="clearCache">${svg("cog",18)} Изчисти кеша</button>
             </div>
+          </div>
+          <div class="card section-gap"><div class="card-head"><h2>Резервации в колички (30 мин)</h2>
+            <button class="btn btn-danger btn-sm" id="clearReservations" ${resList.length ? "" : "disabled"}>Изчисти всички</button>
+          </div>
+            <div class="card-body">
+              <p class="hint" style="margin-bottom:12px">Продуктите се блокират временно, когато някой ги добави в количка. Понякога остават „висящи“ резервации след тест или затворен браузър — тогава изчистете ги тук.</p>
+              ${resHtml}
+            </div>
           </div>`;
         document.getElementById("saveContacts").addEventListener("click", async () => {
             await api("content_save", { body: { contacts: {
@@ -756,6 +768,12 @@
             toast("Настройките са запазени.");
         });
         document.getElementById("clearCache").addEventListener("click", async () => { await api("clear_cache", { body: {} }); toast("Кешът е изчистен."); });
+        document.getElementById("clearReservations")?.addEventListener("click", async () => {
+            if (!confirm("Изчисти всички активни резервации? Продуктите ще станат отново свободни за поръчка.")) return;
+            await api("reservations_clear", { body: {} });
+            toast("Резервациите са изчистени.");
+            views.settings(root);
+        });
     };
 
     /* ---------------------- Сайдбар (мобилно) ---------------------- */

@@ -370,6 +370,30 @@ switch ($action) {
         json_response(['ok' => true, 'paths' => $saved]);
     }
 
+    case 'reservations_list': {
+        $rows = read_reservations();
+        $names = [];
+        foreach (read_products() as $p) $names[(int)$p['id']] = (string)($p['name'] ?? '');
+        $out = [];
+        foreach ($rows as $r) {
+            $pid = (int)($r['product_id'] ?? 0);
+            $exp = (int)($r['expires_at'] ?? 0);
+            $out[] = [
+                'product_id'   => $pid,
+                'product_name' => $names[$pid] ?? ('#' . $pid),
+                'expires_at'   => $exp,
+                'minutes_left' => max(0, (int)ceil(($exp - time()) / 60)),
+            ];
+        }
+        json_response(['ok' => true, 'reservations' => $out, 'count' => count($out)]);
+    }
+
+    case 'reservations_clear': {
+        if ($method !== 'POST') json_error('POST only');
+        write_reservations([]);
+        json_response(['ok' => true, 'cleared' => true]);
+    }
+
     case 'delete_asset': {
         if ($method !== 'POST') json_error('POST only');
         $path = safe_image_asset_path(read_body()['path'] ?? '');
