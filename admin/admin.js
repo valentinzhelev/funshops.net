@@ -602,6 +602,7 @@
             if (hiId) highlightId = hiId;
             const list = orders.filter(o => filter === "all" || (o.status || "pending") === filter);
             const wrap = document.getElementById("ordList");
+            const openIds = wrap ? new Set([...wrap.querySelectorAll(".order-card.open")].map(c => c.dataset.id)) : new Set();
             if (!list.length) { wrap.innerHTML = `<div class="empty">Няма поръчки в тази категория.</div>`; return; }
             wrap.innerHTML = list.map(o => {
                 const st = o.status || "pending";
@@ -633,6 +634,10 @@
                 </div>`;
             }).join("");
             hydrateIcons(wrap);
+            openIds.forEach(id => {
+                const card = wrap.querySelector(`.order-card[data-id="${CSS.escape(id)}"]`);
+                if (card) card.classList.add("open");
+            });
             wrap.querySelectorAll(".o-expand").forEach(b => b.addEventListener("click", () => b.closest(".order-card").classList.toggle("open")));
             wrap.querySelectorAll("[data-st]").forEach(b => b.addEventListener("click", async () => {
                 await api("order_status", { body: { id: Number(b.dataset.id), status: b.dataset.st } });
@@ -657,9 +662,12 @@
             b.classList.add("active"); filter = b.dataset.s; render();
         }));
         render(); updateOrderBadge(orders);
-        window.__ordersRefresh = async (flash, hiId) => {
-            const fresh = await api("orders_list");
-            orders = fresh.orders;
+        window.__ordersRefresh = async (flash, hiId, orderData) => {
+            if (Array.isArray(orderData)) orders = orderData;
+            else {
+                const fresh = await api("orders_list");
+                orders = fresh.orders;
+            }
             render(flash, hiId);
             updateOrderBadge(orders);
         };
@@ -787,21 +795,33 @@
     document.getElementById("todayLabel").textContent = new Date().toLocaleDateString("bg-BG", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     hydrateIcons(document);
     let lastPollLatestId = 0;
+    let lastPollPending = -1;
+    let lastPollTotal = -1;
     async function pollOrdersLive() {
         try {
             const d = await api("orders_poll");
-            const hasNew = lastPollLatestId > 0 && d.latest_id > lastPollLatestId;
-            lastPollLatestId = d.latest_id || lastPollLatestId;
+            const prevLatest = lastPollLatestId;
+            const hasNew = d.latest_id > prevLatest;
+            const onOrders = (location.hash.replace("#", "") || "dashboard").split("/")[0] === "orders";
+
+            lastPollLatestId = Math.max(prevLatest, d.latest_id || 0);
+            lastPollPending = d.pending ?? 0;
+            lastPollTotal = d.total ?? 0;
             updateOrderBadge(d.orders || []);
-            if (hasNew) {
+
+            if (onOrders && typeof window.__ordersRefresh === "function") {
+                await window.__ordersRefresh(hasNew, hasNew ? d.latest_id : 0, d.orders);
+            } else if (hasNew) {
                 toast("Нова поръчка!", "ok");
-                if (location.hash === "#orders" && typeof window.__ordersRefresh === "function") {
-                    window.__ordersRefresh(true, d.latest_id);
-                }
             }
         } catch (e) { /* ignore */ }
     }
-    api("orders_poll").then(d => { lastPollLatestId = d.latest_id || 0; updateOrderBadge(d.orders || []); }).catch(() => {});
+    api("orders_poll").then(d => {
+        lastPollLatestId = d.latest_id || 0;
+        lastPollPending = d.pending ?? 0;
+        lastPollTotal = d.total ?? 0;
+        updateOrderBadge(d.orders || []);
+    }).catch(() => {});
     setInterval(pollOrdersLive, 8000);
     if (!location.hash) location.hash = "dashboard";
     route();
