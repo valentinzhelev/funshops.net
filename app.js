@@ -78,7 +78,12 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(Object.assign({ session_id: getSessionId() }, body))
         });
-        return res.json();
+        const text = await res.text();
+        try {
+            return text ? JSON.parse(text) : { ok: false, error: t("Празен отговор от сървъра.", "Empty server response.") };
+        } catch (e) {
+            return { ok: false, error: t("Грешка от сървъра при резервация.", "Server error during reservation.") };
+        }
     }
 
     async function syncCartReservations() {

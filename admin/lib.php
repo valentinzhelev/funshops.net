@@ -304,8 +304,31 @@ function reserve_product($productId, $sessionId) {
         }
     }
     if (!$found) $rows[] = ['product_id' => $productId, 'session_id' => $sessionId, 'expires_at' => $expires, 'updated_at' => time()];
-    write_reservations($rows);
+    if (!write_reservations($rows)) return ['ok' => false, 'error' => 'Неуспешен запис на резервация. Проверете правата на admin/data/.'];
     return ['ok' => true];
+}
+
+function release_product($productId, $sessionId) {
+    $productId = (int)$productId;
+    $sessionId = sanitize_session_id($sessionId);
+    if (!$productId || !$sessionId) return;
+
+    $rows = read_reservations();
+    $before = count($rows);
+    $rows = array_values(array_filter($rows, fn($r) =>
+        !((int)($r['product_id'] ?? 0) === $productId && ($r['session_id'] ?? '') === $sessionId)
+    ));
+    if (count($rows) !== $before) write_reservations($rows);
+}
+
+function release_session($sessionId) {
+    $sessionId = sanitize_session_id($sessionId);
+    if (!$sessionId) return;
+
+    $rows = read_reservations();
+    $before = count($rows);
+    $rows = array_values(array_filter($rows, fn($r) => ($r['session_id'] ?? '') !== $sessionId));
+    if (count($rows) !== $before) write_reservations($rows);
 }
 
 function sync_session_reservations($sessionId, array $productIds) {
