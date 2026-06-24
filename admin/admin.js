@@ -253,10 +253,11 @@
     /* =========================================================
        ПРОДУКТИ
        ========================================================= */
-    let PRODUCTS = [];
+    let PRODUCTS = [], PRODUCTS_META = null;
     views.products = async (root) => {
         const [pd] = await Promise.all([api("products_list"), loadCats()]);
         PRODUCTS = pd.products;
+        PRODUCTS_META = pd.meta || null;
         root.innerHTML = `
           <div class="toolbar">
             <div class="search"><span class="ni" data-i="search"></span><input id="pSearch" placeholder="Търси по име, категория…"></div>
@@ -277,6 +278,18 @@
             });
             const body = document.getElementById("pBody");
             document.getElementById("pEmpty").hidden = list.length > 0;
+            if (!list.length) {
+                const emptyEl = document.getElementById("pEmpty");
+                if (PRODUCTS_META && (PRODUCTS_META.size > 0 || PRODUCTS_META.root_size > 0)) {
+                    emptyEl.innerHTML = `Няма продукти в админ панела, но <code>products.json</code> съществува на сървъра (${PRODUCTS_META.root_size || PRODUCTS_META.size} bytes).<br>
+                    Проверете правата на файла (644) и <code>admin/config.php</code> — път: <code>${esc(PRODUCTS_META.path)}</code>`;
+                } else if (PRODUCTS_META && !PRODUCTS_META.readable && PRODUCTS_META.exists) {
+                    emptyEl.innerHTML = `PHP не може да прочете <code>products.json</code>. Задайте права <b>644</b> на файла в cPanel File Manager.`;
+                } else {
+                    emptyEl.innerHTML = "Няма продукти.";
+                }
+                emptyEl.hidden = false;
+            }
             body.innerHTML = list.map(p => {
                 const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
                 return `<tr>

@@ -6,17 +6,78 @@ require_once __DIR__ . '/config.php';
 
 /** Сигурно четене на JSON файл с резервна стойност. */
 function read_json($file, $fallback = []) {
-    if (!file_exists($file)) return $fallback;
-    $fh = @fopen($file, 'r');
-    if (!$fh) return $fallback;
-    $data = '';
-    if (flock($fh, LOCK_SH)) {
-        while (!feof($fh)) $data .= fread($fh, 8192);
-        flock($fh, LOCK_UN);
+    if (!is_string($file) || $file === '' || !is_file($file)) return $fallback;
+
+    $data = @file_get_contents($file);
+    if ($data === false) {
+        $fh = @fopen($file, 'r');
+        if (!$fh) return $fallback;
+        $data = '';
+        if (flock($fh, LOCK_SH)) {
+            while (!feof($fh)) $data .= fread($fh, 8192);
+            flock($fh, LOCK_UN);
+        }
+        fclose($fh);
     }
-    fclose($fh);
+
+    if ($data === '' || $data === false) return $fallback;
+
+    // UTF-8 BOM
+    if (strncmp($data, "\xEF\xBB\xBF", 3) === 0) $data = substr($data, 3);
+
     $decoded = json_decode($data, true);
+    if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) return $fallback;
     return $decoded === null ? $fallback : $decoded;
+}
+
+/** Път до products.json — каноничен файл в root на сайта. */
+function products_file_path() {
+    $candidates = [];
+    if (defined('PRODUCTS_FILE')) $candidates[] = PRODUCTS_FILE;
+    if (defined('ROOT_DIR')) $candidates[] = ROOT_DIR . '/products.json';
+
+    foreach ($candidates as $path) {
+        $path = str_replace('\\', '/', (string)$path);
+        if ($path === '') continue;
+        $real = @realpath($path);
+        if ($real && is_file($real)) return $real;
+        if (is_file($path)) return $path;
+    }
+
+    return defined('PRODUCTS_FILE') ? PRODUCTS_FILE : (ROOT_DIR . '/products.json');
+}
+
+/** Прочита products.json (с fallback към root/products.json). */
+function read_products() {
+    $file = products_file_path();
+    $root = defined('ROOT_DIR') ? ROOT_DIR . '/products.json' : '';
+    $products = read_json($file, null);
+    if (is_array($products)) return $products;
+    if ($root && $file !== $root && is_file($root)) {
+        $products = read_json($root, []);
+        if (is_array($products)) return $products;
+    }
+    return [];
+}
+
+/** Записва products.json на каноничния път. */
+function write_products($products) {
+    return write_json(products_file_path(), $products);
+}
+
+/** Диагностика — за празен списък продукти в админ. */
+function products_file_diagnostics() {
+    $file = products_file_path();
+    $root = defined('ROOT_DIR') ? ROOT_DIR . '/products.json' : '';
+    return [
+        'path'       => $file,
+        'root_path'  => $root,
+        'exists'     => is_file($file),
+        'readable'   => is_readable($file),
+        'size'       => is_file($file) ? (int)filesize($file) : 0,
+        'root_exists'=> $root ? is_file($root) : false,
+        'root_size'  => ($root && is_file($root)) ? (int)filesize($root) : 0,
+    ];
 }
 
 /** Атомарен запис на JSON (tmp файл + rename + ексклузивно заключване). */
@@ -220,7 +281,7 @@ function reserve_product($productId, $sessionId) {
     $sessionId = sanitize_session_id($sessionId);
     if (!$productId || !$sessionId) return ['ok' => false, 'error' => 'Невалидни данни.'];
 
-    $products = read_json(PRODUCTS_FILE, []);
+    $products = read_products();
     $product = null;
     foreach ($products as $p) {
         if ((int)$p['id'] === $productId) { $product = $p; break; }
@@ -299,13 +360,13 @@ function order_product_ids($order) {
 
 function set_products_availability(array $productIds, $available) {
     if (!$productIds) return;
-    $products = read_json(PRODUCTS_FILE, []);
+    $products = read_products();
     foreach ($products as $i => $p) {
         if (in_array((int)($p['id'] ?? 0), $productIds, true)) {
             $products[$i]['available'] = (bool)$available;
         }
     }
-    write_json(PRODUCTS_FILE, $products);
+    write_products($products);
 }
 
 function send_push_notification($title, $message) {

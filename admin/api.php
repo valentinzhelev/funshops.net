@@ -25,7 +25,7 @@ switch ($action) {
     case 'stats': {
         $visits = read_json(VISITS_FILE, []);
         $orders = read_json(ORDERS_FILE, []);
-        $products = read_json(PRODUCTS_FILE, []);
+        $products = read_products();
 
         // Дневни посещения (date => count)
         $vDaily = [];
@@ -73,13 +73,17 @@ switch ($action) {
     }
 
     /* ---------------------- ПРОДУКТИ ---------------------- */
-    case 'products_list':
-        json_response(['ok' => true, 'products' => read_json(PRODUCTS_FILE, [])]);
+    case 'products_list': {
+        $products = read_products();
+        $payload = ['ok' => true, 'products' => $products];
+        if (!$products) $payload['meta'] = products_file_diagnostics();
+        json_response($payload);
+    }
 
     case 'product_save': {
         if ($method !== 'POST') json_error('POST only');
         $in = read_body();
-        $products = read_json(PRODUCTS_FILE, []);
+        $products = read_products();
 
         $tags = $in['tags'] ?? [];
         if (is_string($tags)) $tags = array_values(array_filter(array_map('trim', explode(',', $tags))));
@@ -103,41 +107,41 @@ switch ($action) {
         }
         if (!$found) $products[] = $item;
 
-        write_json(PRODUCTS_FILE, $products);
+        write_products($products);
         json_response(['ok' => true, 'product' => $item, 'created' => !$found]);
     }
 
     case 'product_delete': {
         if ($method !== 'POST') json_error('POST only');
         $id = (int)(read_body()['id'] ?? 0);
-        $products = read_json(PRODUCTS_FILE, []);
+        $products = read_products();
         $products = array_values(array_filter($products, fn($p) => (int)$p['id'] !== $id));
-        write_json(PRODUCTS_FILE, $products);
+        write_products($products);
         json_response(['ok' => true]);
     }
 
     case 'product_toggle': {
         if ($method !== 'POST') json_error('POST only');
         $id = (int)(read_body()['id'] ?? 0);
-        $products = read_json(PRODUCTS_FILE, []);
+        $products = read_products();
         foreach ($products as $i => $p) {
             if ((int)$p['id'] === $id) { $products[$i]['available'] = empty($p['available']); break; }
         }
-        write_json(PRODUCTS_FILE, $products);
+        write_products($products);
         json_response(['ok' => true]);
     }
 
     case 'product_duplicate': {
         if ($method !== 'POST') json_error('POST only');
         $id = (int)(read_body()['id'] ?? 0);
-        $products = read_json(PRODUCTS_FILE, []);
+        $products = read_products();
         foreach ($products as $p) {
             if ((int)$p['id'] === $id) {
                 $copy = $p;
                 $copy['id'] = (int)round(microtime(true) * 1000);
                 $copy['name'] = $p['name'] . ' (копие)';
                 $products[] = $copy;
-                write_json(PRODUCTS_FILE, $products);
+                write_products($products);
                 json_response(['ok' => true, 'product' => $copy]);
             }
         }
@@ -148,7 +152,7 @@ switch ($action) {
     case 'categories_list': {
         $cats = read_json(CATEGORIES_FILE, []);
         if (!$cats) $cats = read_json(CATEGORIES_MIRROR, []);
-        $products = read_json(PRODUCTS_FILE, []);
+        $products = read_products();
         $counts = [];
         foreach ($products as $p) if (!empty($p['available'])) {
             $c = $p['category'] ?? '';
@@ -188,9 +192,9 @@ switch ($action) {
         write_json(CATEGORIES_FILE, $cats);
         write_json(CATEGORIES_MIRROR, $cats);
         // обновяваме продуктите
-        $products = read_json(PRODUCTS_FILE, []);
+        $products = read_products();
         foreach ($products as $i => $p) if (($p['category'] ?? '') === $from) $products[$i]['category'] = $to;
-        write_json(PRODUCTS_FILE, $products);
+        write_products($products);
         json_response(['ok' => true, 'categories' => $cats]);
     }
 
