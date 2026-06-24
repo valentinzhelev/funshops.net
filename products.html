@@ -223,6 +223,21 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             moreWrap.hidden = true;
         }
+
+        bindAddButtons();
+    }
+
+    function bindAddButtons() {
+        document.getElementById("grid").querySelectorAll(".pc-add").forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = "1";
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const p = products.find(x => x.id === Number(btn.dataset.id));
+                if (p && (await S.addToCart(p))) { renderCats(); render(); }
+            });
+        });
     }
 
     function renderActiveFilters() {
@@ -274,14 +289,6 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </article>`;
     }
-
-        grid.querySelectorAll(".pc-add").forEach(btn => {
-            btn.addEventListener("click", async (e) => {
-                e.preventDefault();
-                const p = products.find(x => x.id === Number(btn.dataset.id));
-                if (p && (await S.addToCart(p))) { renderCats(); render(); }
-            });
-        });
 
     // Търсене (с дебоунс)
     let tmr;
