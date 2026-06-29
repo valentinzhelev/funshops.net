@@ -556,7 +556,7 @@
                 video = d.paths[0];
                 videoTs = d.uploaded_at || Math.floor(Date.now() / 1000);
                 renderVideo();
-                toast("Видеото е качено. Натиснете «Запази продукта».");
+                toast("Видеото е качено. Задължително натиснете «Запази продукта».");
             } catch (e) { toast(e.message, "err"); }
             finally { vidLabel.textContent = video ? "Смени видеото" : "Качи видео"; }
             vidInput.value = "";

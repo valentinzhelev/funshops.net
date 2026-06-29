@@ -217,12 +217,22 @@ function video_mime_for_ext($ext) {
     return $ext === 'webm' ? 'video/webm' : 'video/mp4';
 }
 
-/** Валидира път до видео на продукт (images/products|packages/NN/1.ext). */
+/** Име за ново видео — уникален файл при всяко качване (избягва кеш на 1.mp4). */
+function new_product_video_filename($ext = 'mp4') {
+    $ext = strtolower(preg_replace('/[^a-z0-9]/', '', (string)$ext)) ?: 'mp4';
+    return 'v' . time() . '.' . $ext;
+}
+
+/** Валидира път до видео на продукт (images/products|packages/NN/1.ext или v123.mp4). */
 function safe_product_video_path($path) {
     $path = ltrim(str_replace('\\', '/', (string)$path), '/');
     $extPattern = implode('|', array_map('preg_quote', ALLOWED_VIDEO_EXT));
-    if (!preg_match('#^images/(products|packages)/(\d+)/1\.(' . $extPattern . ')$#i', $path, $m)) return null;
-    return 'images/' . $m[1] . '/' . normalize_product_folder($m[2]) . '/1.' . strtolower($m[3]);
+    if (!preg_match('#^images/(products|packages)/(\d+)/(1|v\d+)\.(' . $extPattern . ')$#i', $path, $m)) {
+        return null;
+    }
+    $folder = normalize_product_folder($m[2]);
+    if ($folder === '') return null;
+    return 'images/' . $m[1] . '/' . $folder . '/' . strtolower($m[3]) . '.' . strtolower($m[4]);
 }
 
 /** Потоково обслужване на видео с Range (нужно за HTML5 плейъра). */
@@ -304,7 +314,7 @@ function clear_product_folder_videos($subdir) {
     }
     $dir = IMAGES_DIR . '/' . $subdir;
     if (!is_dir($dir)) return;
-    foreach (glob($dir . '/1.*') ?: [] as $f) {
+    foreach (glob($dir . '/*.mp4') ?: [] as $f) {
         if (is_file($f)) @unlink($f);
     }
     foreach (glob($dir . '/_upload_*') ?: [] as $f) {

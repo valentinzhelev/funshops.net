@@ -127,6 +127,7 @@ switch ($action) {
             }
         }
         if ($oldVideo && empty($item['video'])) {
+            delete_media_asset($oldVideo);
             clear_product_folder_videos(product_video_subdir($oldVideo));
         } elseif ($oldVideo && $oldVideo !== $item['video']) {
             delete_media_asset($oldVideo);
@@ -403,8 +404,7 @@ switch ($action) {
                 if (!is_dir($destDir) && !@mkdir($destDir, 0775, true)) {
                     json_error('Папката ' . $prefix . ' не може да се създаде — проверете правата на images/.');
                 }
-                clear_product_folder_videos($subdir);
-                $fname = '1.' . $ext;
+                $fname = new_product_video_filename($ext);
             } elseif ($subdir) {
                 $fname = $useBunny
                     ? bunny_next_image_filename($storageDir, $ext)
@@ -416,9 +416,6 @@ switch ($action) {
 
             $relPath = $prefix . $fname;
             $destFile = $destDir . '/' . $fname;
-            if ($kind === 'video' && !$useBunny && is_file($destFile)) {
-                @unlink($destFile);
-            }
             $ok = $useBunny
                 ? bunny_upload($relPath, $tmps[$i])
                 : move_uploaded_file($tmps[$i], $destFile);
