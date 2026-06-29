@@ -212,6 +212,201 @@ function max_upload_bytes_for($kind) {
     return defined('MAX_UPLOAD_BYTES') ? (int)MAX_UPLOAD_BYTES : 60 * 1024 * 1024;
 }
 
+/** Макс. продължителност на видео (секунди) — по подразбиране 5 мин. */
+function max_video_duration_seconds() {
+    return defined('MAX_VIDEO_DURATION_SEC') ? (int)MAX_VIDEO_DURATION_SEC : 300;
+}
+
+function video_mime_for_ext($ext) {
+    $ext = strtolower((string)$ext);
+    $map = [
+        'mp4' => 'video/mp4', 'm4v' => 'video/mp4', 'webm' => 'video/webm',
+        'mov' => 'video/quicktime', 'avi' => 'video/x-msvideo', 'mkv' => 'video/x-matroska',
+    ];
+    return $map[$ext] ?? 'video/mp4';
+}
+
+/** Валидира път до видео на продукт (images/products|packages/NN/1.ext). */
+function safe_product_video_path($path) {
+    $path = ltrim(str_replace('\\', '/', (string)$path), '/');
+    $extPattern = implode('|', array_map('preg_quote', ALLOWED_VIDEO_EXT));
+    if (!preg_match('#^images/(products|packages)/(\d+)/1\.(' . $extPattern . ')$#i', $path, $m)) return null;
+    return 'images/' . $m[1] . '/' . normalize_product_folder($m[2]) . '/1.' . strtolower($m[3]);
+}
+
+/** Продължителност на видео файл в секунди (null ако не може да се прочете). */
+function video_file_duration_seconds($filePath) {
+    if (!is_file($filePath) || !is_readable($filePath)) return null;
+    $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+    if (in_array($ext, ['mp4', 'm4v', 'mov'], true)) {
+        $dur = quicktime_mvhd_duration($filePath);
+        if ($dur !== null) return $dur;
+    }
+    if ($ext === 'webm') {
+        $dur = webm_duration_seconds($filePath);
+        if ($dur !== null) return $dur;
+    }
+    if (function_exists('shell_exec')) {
+        $probe = trim((string)@shell_exec('command -v ffprobe 2>/dev/null'));
+        if ($probe === '') $probe = trim((string)@shell_exec('where ffprobe 2>nul'));
+        if ($probe !== '') {
+            $cmd = 'ffprobe -v error -show_entries format=duration -of csv=p=0 ' . escapeshellarg($filePath);
+            $out = trim((string)@shell_exec($cmd));
+            if ($out !== '' && is_numeric($out)) return (float)$out;
+        }
+    }
+    return null;
+}
+
+/** Чете duration от mvhd atom (mp4/mov/m4v). */
+function quicktime_mvhd_duration($filePath) {
+    $size = (int)@filesize($filePath);
+    if ($size <= 0) return null;
+    $chunks = [];
+    $head = min($size, 4 * 1024 * 1024);
+    $chunks[] = read_file_chunk($filePath, 0, $head);
+    if ($size > $head) {
+        $chunks[] = read_file_chunk($filePath, max(0, $size - 512 * 1024), min(512 * 1024, $size));
+    }
+    foreach ($chunks as $data) {
+        $dur = parse_mvhd_duration_from_buffer($data);
+        if ($dur !== null) return $dur;
+    }
+    return null;
+}
+
+function read_file_chunk($filePath, $offset, $length) {
+    $fh = @fopen($filePath, 'rb');
+    if (!$fh) return '';
+    if ($offset > 0) fseek($fh, $offset);
+    $data = fread($fh, $length);
+    fclose($fh);
+    return $data === false ? '' : $data;
+}
+
+function parse_mvhd_duration_from_buffer($data) {
+    $pos = 0;
+    $len = strlen($data);
+    while ($pos + 8 <= $len) {
+        $atomSize = unpack('N', substr($data, $pos, 4))[1];
+        $atomType = substr($data, $pos + 4, 4);
+        if ($atomSize < 8) break;
+        if ($pos + $atomSize > $len) break;
+        if ($atomType === 'mvhd') {
+            return parse_mvhd_atom(substr($data, $pos + 8, $atomSize - 8));
+        }
+        $pos += $atomSize;
+    }
+    $idx = strpos($data, 'mvhd');
+    if ($idx !== false && $idx >= 4) {
+        $atomStart = $idx - 4;
+        if ($atomStart + 8 <= $len) {
+            $atomSize = unpack('N', substr($data, $atomStart, 4))[1];
+            if ($atomSize >= 8 && $atomStart + $atomSize <= $len) {
+                return parse_mvhd_atom(substr($data, $atomStart + 8, $atomSize - 8));
+            }
+        }
+    }
+    return null;
+}
+
+function parse_mvhd_atom($body) {
+    if ($body === '' || strlen($body) < 20) return null;
+    $version = ord($body[0]);
+    if ($version === 0) {
+        if (strlen($body) < 24) return null;
+        $timescale = unpack('N', substr($body, 12, 4))[1];
+        $duration  = unpack('N', substr($body, 16, 4))[1];
+    } else {
+        if (strlen($body) < 32) return null;
+        $timescale = unpack('N', substr($body, 20, 4))[1];
+        $hi = unpack('N', substr($body, 24, 4))[1];
+        $lo = unpack('N', substr($body, 28, 4))[1];
+        $duration = ($hi * 4294967296) + $lo;
+    }
+    if ($timescale <= 0) return null;
+    return (float)$duration / (float)$timescale;
+}
+
+/** Опростено четене на Duration от WebM (EBML). */
+function webm_duration_seconds($filePath) {
+    $data = read_file_chunk($filePath, 0, min((int)@filesize($filePath), 256 * 1024));
+    if ($data === '') return null;
+    $pos = 0;
+    while (($pos = strpos($data, "\x44\x89", $pos)) !== false) {
+        $floatBytes = substr($data, $pos + 2, 8);
+        if (strlen($floatBytes) === 8) {
+            $parts = unpack('E', $floatBytes);
+            if (!empty($parts[1]) && $parts[1] > 0 && $parts[1] <= max_video_duration_seconds() + 60) {
+                return (float)$parts[1];
+            }
+        }
+        $pos += 2;
+    }
+    return null;
+}
+
+/** Потоково обслужване на видео с Range (нужно за HTML5 плейъра). */
+function stream_video_file($fullPath, $mime) {
+    $size = (int)filesize($fullPath);
+    if ($size <= 0) {
+        http_response_code(404);
+        exit;
+    }
+
+    $start = 0;
+    $end = $size - 1;
+    $httpStatus = 200;
+
+    if (isset($_SERVER['HTTP_RANGE'])) {
+        if (preg_match('/bytes=(\d*)-(\d*)/', $_SERVER['HTTP_RANGE'], $m)) {
+            if ($m[1] !== '') $start = (int)$m[1];
+            if ($m[2] !== '') $end = (int)$m[2];
+            if ($end >= $size) $end = $size - 1;
+            if ($start > $end || $start >= $size) {
+                http_response_code(416);
+                header('Content-Range: bytes */' . $size);
+                exit;
+            }
+            $httpStatus = 206;
+        }
+    }
+
+    $length = $end - $start + 1;
+
+    if (function_exists('apache_setenv')) {
+        @apache_setenv('no-gzip', '1');
+    }
+    @ini_set('zlib.output_compression', '0');
+
+    http_response_code($httpStatus);
+    header('Content-Type: ' . $mime);
+    header('Accept-Ranges: bytes');
+    header('Content-Length: ' . $length);
+    if ($httpStatus === 206) {
+        header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
+    }
+    header('Cache-Control: public, max-age=86400');
+
+    $fh = fopen($fullPath, 'rb');
+    if (!$fh) {
+        http_response_code(500);
+        exit;
+    }
+    if ($start > 0) fseek($fh, $start);
+
+    $remaining = $length;
+    while ($remaining > 0 && !feof($fh)) {
+        $read = fread($fh, min(8192, $remaining));
+        if ($read === false) break;
+        echo $read;
+        $remaining -= strlen($read);
+        if (connection_aborted()) break;
+    }
+    fclose($fh);
+    exit;
+}
+
 /** Изтрива старо видео (1.mp4, 1.webm …) в папката на продукта преди ново качване. */
 function clear_product_folder_videos($subdir) {
     $subdir = safe_media_subdir($subdir);

@@ -381,6 +381,7 @@ switch ($action) {
             if (!is_uploaded_file($tmps[$i])) continue;
             $maxBytes = max_upload_bytes_for($kind);
             if ($sizes[$i] > $maxBytes) {
+                if ($kind === 'video') json_error('Файлът е твърде голям за качване на сървъра.');
                 $maxMb = (int)round($maxBytes / (1024 * 1024));
                 json_error('Файлът е твърде голям (макс. ' . $maxMb . 'MB).');
             }
@@ -403,6 +404,15 @@ switch ($action) {
             $ok = $useBunny
                 ? bunny_upload($relPath, $tmps[$i])
                 : move_uploaded_file($tmps[$i], $destDir . '/' . $fname);
+            if ($ok && $kind === 'video' && !$useBunny) {
+                $fullVideo = $destDir . '/' . $fname;
+                $duration = video_file_duration_seconds($fullVideo);
+                $maxDur = max_video_duration_seconds();
+                if ($duration !== null && $duration > $maxDur + 0.5) {
+                    @unlink($fullVideo);
+                    json_error('Видеото е по-дълго от ' . (int)round($maxDur / 60) . ' минути.');
+                }
+            }
             if ($ok) $saved[] = $relPath;
         }
         if (!$saved) {

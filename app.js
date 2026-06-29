@@ -29,11 +29,14 @@
         const base = typeof window.SITE_ASSET_BASE === "string" ? window.SITE_ASSET_BASE : ASSET_BASE;
         return base + String(p).replace(/^\//, "").replace(/\\\//g, "/");
     }
-    /** Видео винаги от същия сървър — качва се локално, не през CDN. */
-    function videoAsset(p) {
+    /** Видео през video.php — правилен MIME и Range за HTML5 плейъра. */
+    function videoAsset(p, cacheKey) {
         if (!p) return "";
         if (/^https?:/i.test(p)) return p;
-        return String(p).replace(/^\//, "").replace(/\\/g, "/");
+        const path = String(p).replace(/^\//, "").replace(/\\/g, "/");
+        let url = "video.php?f=" + encodeURIComponent(path);
+        if (cacheKey != null && cacheKey !== "") url += "&v=" + encodeURIComponent(String(cacheKey));
+        return url;
     }
     function videoMime(path) {
         const ext = String(path || "").split(".").pop().toLowerCase();

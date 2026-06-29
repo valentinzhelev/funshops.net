@@ -175,14 +175,21 @@ document.addEventListener("DOMContentLoaded", () => {
         videoErr.hidden = true;
         if (p.video) {
             videoWrap.style.display = "block";
-            const vSrc = (S.videoAsset || S.asset)(p.video) + "?v=" + encodeURIComponent(String(p.id));
-            videoEl.src = vSrc;
-            videoEl.load();
+            const vSrc = (S.videoAsset || S.asset)(p.video, p.id);
+            const mime = (S.videoMime || (() => "video/mp4"))(p.video);
+            videoEl.innerHTML = "";
+            const source = document.createElement("source");
+            source.src = vSrc;
+            source.type = mime;
+            videoEl.appendChild(source);
             videoEl.onerror = () => { videoErr.hidden = false; };
+            videoEl.onloadeddata = () => { videoErr.hidden = true; };
+            videoEl.load();
         } else {
             videoWrap.style.display = "none";
-            videoEl.removeAttribute("src");
-            videoEl.load();
+            videoEl.innerHTML = "";
+            videoEl.onerror = null;
+            videoEl.onloadeddata = null;
         }
 
         renderRelated(p, products);

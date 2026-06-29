@@ -8,7 +8,31 @@
         ? window.SITE_ASSET_BASE
         : "../";
     const asset = p => !p ? "" : (/^https?:/i.test(p) ? p : ASSET_BASE + String(p).replace(/^\//, ""));
-
+    const videoPreviewUrl = p => {
+        if (!p) return "";
+        if (/^https?:/i.test(p)) return p;
+        const path = String(p).replace(/^\//, "").replace(/\\/g, "/");
+        return ASSET_BASE + "video.php?f=" + encodeURIComponent(path) + "&v=" + Date.now();
+    };
+    const MAX_VIDEO_SEC = 300;
+    async function readVideoDuration(file) {
+        return new Promise((resolve, reject) => {
+            const v = document.createElement("video");
+            v.preload = "metadata";
+            const url = URL.createObjectURL(file);
+            v.onloadedmetadata = () => {
+                URL.revokeObjectURL(url);
+                const d = v.duration;
+                if (!Number.isFinite(d) || d <= 0) reject(new Error("Не може да се прочете видеото."));
+                else resolve(d);
+            };
+            v.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error("Невалиден видео файл."));
+            };
+            v.src = url;
+        });
+    }
     /* ---------------------- Икони ---------------------- */
     const ICONS = {
         grid:'<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
@@ -445,7 +469,7 @@
             </div>
             <div class="card section-gap"><div class="card-head"><h2>Видео</h2></div>
               <div class="card-body">
-                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта. Формати: mp4, webm, mov, m4v, avi, mkv (препоръчително mp4). Макс. 100 MB.</p>
+                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта. Формати: mp4, webm, mov, m4v, avi, mkv (най-надеждно: mp4 H.264). Макс. 5 минути.</p>
                 <div id="vidBox"></div>
                 <div class="row-gap" style="margin-top:12px">
                   <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео</span><input type="file" id="vidInput" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.webm,.mov,.m4v,.avi,.mkv" hidden></div>
@@ -480,8 +504,10 @@
 
         const renderVideo = () => {
             if (video) {
-                const bust = asset(video) + "?v=" + Date.now();
-                vidBox.innerHTML = `<video class="vid-preview" controls preload="metadata" src="${bust}"></video><p class="hint">${esc(video)}</p>`;
+                const bust = videoPreviewUrl(video);
+                const ext = String(video).split(".").pop().toLowerCase();
+                const mime = { mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mov: "video/quicktime", avi: "video/x-msvideo", mkv: "video/x-matroska" }[ext] || "video/mp4";
+                vidBox.innerHTML = `<video class="vid-preview" controls preload="metadata" playsinline><source src="${bust}" type="${mime}"></video><p class="hint">${esc(video)}</p>`;
                 vidLabel.textContent = "Смени видеото";
                 vidRemove.hidden = false;
             } else {
@@ -539,6 +565,10 @@
         vidInput.addEventListener("change", async () => {
             if (!vidInput.files.length) return;
             try {
+                const dur = await readVideoDuration(vidInput.files[0]);
+                if (dur > MAX_VIDEO_SEC) {
+                    throw new Error("Видеото е по-дълго от 5 минути (" + Math.ceil(dur / 60) + " мин).");
+                }
                 video = (await uploadFiles(vidInput.files, "video", requireSubdir()))[0];
                 renderVideo();
                 toast("Видеото е качено.");
