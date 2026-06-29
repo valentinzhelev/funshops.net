@@ -172,19 +172,27 @@ table.tbl tr:hover td { background: #fafbfe; }
 
 /* ---------- Форми ---------- */
 .field { margin-bottom: 16px; }
-.field label { display: block; font-weight: 700; font-size: .86rem; margin-bottom: 6px; color: var(--ink-soft); }
-.field .hint { font-weight: 500; color: var(--muted); font-size: .78rem; margin-top: 4px; }
+.field > label:not(.switch) { display: block; font-weight: 700; font-size: .86rem; margin-bottom: 6px; color: var(--ink-soft); }
+.field .hint { font-weight: 500; color: var(--muted); font-size: .78rem; margin-top: 4px; display: block; }
+.info-box { background: linear-gradient(135deg, #fffaf0 0%, #fff 100%); border: 1px solid rgba(224,168,46,.35); border-radius: 14px; padding: 16px 18px; margin-bottom: 18px; line-height: 1.55; color: var(--ink-soft); font-size: .9rem; }
+.info-box strong { color: var(--ink); display: block; margin-bottom: 8px; font-size: .95rem; }
+.info-box ol { margin: 0; padding-left: 1.25rem; }
+.info-box li { margin-bottom: 6px; }
+.info-box li:last-child { margin-bottom: 0; }
 .input, textarea.input, select.input { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: #fff; transition: .2s; }
 .input:focus, textarea.input:focus, select.input:focus { outline: 2px solid var(--brand-2); border-color: transparent; }
 textarea.input { resize: vertical; min-height: 90px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .form-grid .full { grid-column: 1 / -1; }
-.switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; }
-.switch input { display: none; }
-.switch .track { width: 46px; height: 26px; border-radius: 999px; background: var(--line); position: relative; transition: background .2s; }
+.switch { display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 12px; cursor: pointer; font-weight: 700; color: var(--ink); margin: 4px 0 0; user-select: none; }
+.field .switch { display: inline-flex; margin-bottom: 0; font-size: .92rem; color: var(--ink); }
+.field-availability .switch { margin-top: 8px; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.switch .track { flex: 0 0 46px; width: 46px; height: 26px; border-radius: 999px; background: var(--line); position: relative; transition: background .2s; }
 .switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: var(--sh-sm); transition: transform .2s; }
 .switch input:checked + .track { background: var(--green); }
 .switch input:checked + .track::after { transform: translateX(20px); }
+.switch-label, .switch .switch-label { white-space: nowrap; flex-shrink: 0; line-height: 1.2; }
 
 /* Снимки/качване */
 .uploader { border: 2px dashed var(--line); border-radius: 14px; padding: 18px; text-align: center; color: var(--muted); cursor: pointer; transition: .2s; background: #fff; }

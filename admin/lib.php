@@ -125,11 +125,19 @@ function safe_filename($name, $allowed_ext) {
     return 'file_' . bin2hex(random_bytes(7)) . '.' . $ext;
 }
 
-/** Подпапка products/01 или packages/12 — само валидни стойности. */
+/** Подпапка products/01 или packages/544 — само цифров номер. */
+function normalize_product_folder($name) {
+    $name = trim((string)$name);
+    if (!preg_match('/^\d+$/', $name)) return '';
+    return strlen($name) <= 2 ? str_pad($name, 2, '0', STR_PAD_LEFT) : $name;
+}
+
 function safe_media_subdir($subdir) {
     $subdir = str_replace('\\', '/', trim((string)$subdir, '/'));
-    if (!preg_match('#^(products|packages)/(\d{2})$#', $subdir)) return '';
-    return $subdir;
+    if (!preg_match('#^(products|packages)/(\d+)$#', $subdir, $m)) return '';
+    $folder = normalize_product_folder($m[2]);
+    if ($folder === '') return '';
+    return $m[1] . '/' . $folder;
 }
 
 /** Следващ номер за снимка в папка на продукт (2.png, 3.png …). */
@@ -157,7 +165,7 @@ function resolve_image_path($path) {
 /** Валидира път до файл в images/products|packages (без локален файл). */
 function safe_image_asset_path($path) {
     $path = ltrim(str_replace('\\', '/', (string)$path), '/');
-    if (!preg_match('#^images/(products|packages)/(\d{2})/[A-Za-z0-9._-]+$#', $path)) return null;
+    if (!preg_match('#^images/(products|packages)/(\d+)/[A-Za-z0-9._-]+$#', $path)) return null;
     return $path;
 }
 

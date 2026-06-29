@@ -88,10 +88,12 @@ switch ($action) {
         $tags = $in['tags'] ?? [];
         if (is_string($tags)) $tags = array_values(array_filter(array_map('trim', explode(',', $tags))));
 
+        $priceRaw = str_replace(',', '.', trim((string)($in['price'] ?? '')));
+
         $item = [
             'id'          => (int)($in['id'] ?? round(microtime(true) * 1000)),
             'name'        => trim((string)($in['name'] ?? '')),
-            'price'       => is_numeric($in['price'] ?? null) ? 0 + $in['price'] : 0,
+            'price'       => is_numeric($priceRaw) ? 0 + $priceRaw : 0,
             'images'      => array_values(array_filter((array)($in['images'] ?? []))),
             'video'       => !empty($in['video']) ? (string)$in['video'] : null,
             'description' => (string)($in['description'] ?? ''),

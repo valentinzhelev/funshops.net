@@ -77,6 +77,47 @@
     }
     const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const money = n => (Math.round(Number(n) * 100) / 100).toFixed(2) + " €";
+    const PRICE_COMMA_MSG = "Цената се пише само с точка (.), напр. 12.50 — не със запетая.";
+
+    function sanitizePriceText(s) {
+        s = String(s).replace(/,/g, ".").replace(/[^\d.]/g, "");
+        const dot = s.indexOf(".");
+        if (dot === -1) return s;
+        return s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, "").slice(0, 2);
+    }
+
+    function parsePriceInput(val) {
+        const s = String(val).trim();
+        if (!s) return { ok: true, value: 0 };
+        if (s.includes(",")) return { ok: false, reason: "comma" };
+        if (!/^\d+(\.\d{1,2})?$/.test(s)) return { ok: false, reason: "invalid" };
+        return { ok: true, value: parseFloat(s) };
+    }
+
+    function bindPriceInput(el) {
+        const warnComma = () => toast(PRICE_COMMA_MSG, "err");
+        el.addEventListener("keydown", e => {
+            if (e.key === ",") { e.preventDefault(); warnComma(); }
+        });
+        el.addEventListener("input", () => {
+            if (!el.value.includes(",")) {
+                const clean = sanitizePriceText(el.value);
+                if (clean !== el.value) el.value = clean;
+                return;
+            }
+            el.value = sanitizePriceText(el.value);
+            warnComma();
+        });
+        el.addEventListener("paste", e => {
+            const t = (e.clipboardData || window.clipboardData).getData("text") || "";
+            if (!/,/.test(t)) return;
+            e.preventDefault();
+            const start = el.selectionStart ?? el.value.length;
+            const end = el.selectionEnd ?? el.value.length;
+            el.value = sanitizePriceText(el.value.slice(0, start) + t + el.value.slice(end));
+            warnComma();
+        });
+    }
 
     /* ---------------------- Модал ---------------------- */
     const modalScrim = document.getElementById("modalScrim");
@@ -332,19 +373,22 @@
         }
     }
 
+    function productFolderFromName(name) {
+        name = String(name || "").trim();
+        if (!/^\d+$/.test(name)) return "";
+        return name.length <= 2 ? name.padStart(2, "0") : name;
+    }
+
     function productMediaSubdir(p, category) {
         const all = [...(p.images || []), p.video].filter(Boolean);
         for (const path of all) {
-            const m = String(path).match(/^images\/(products|packages)\/(\d{2})\//);
+            const m = String(path).match(/^images\/(products|packages)\/(\d+)\//);
             if (m) return m[1] + "/" + m[2];
         }
-        const name = String(p.name || "").trim();
-        if (/^\d{1,2}$/.test(name)) {
-            const n = name.padStart(2, "0");
-            const cat = category || p.category || "";
-            return /опаков/i.test(cat) ? "packages/" + n : "products/" + n;
-        }
-        return "";
+        const folder = productFolderFromName(p.name);
+        if (!folder) return "";
+        const cat = category || p.category || "";
+        return /опаков/i.test(cat) ? "packages/" + folder : "products/" + folder;
     }
 
     views.productEdit = async (root, id) => {
@@ -370,13 +414,23 @@
             <button type="button" class="btn btn-primary" id="pSaveTop">${svg("check", 18)} Запази</button>
           </div>
           <form id="pForm" class="edit-form">
+            <div class="info-box">
+              <strong>Как да добавите снимки и видео</strong>
+              <ol>
+                <li><b>Код на продукта</b> — номерът на бутилката, <b>само с цифри</b> (напр. <b>01</b>, <b>64</b>, <b>094</b>). Без букви и текст.</li>
+                <li>Първо въведете кода горе, <b>после</b> качете снимки и видео — иначе качването няма да тръгне.</li>
+                <li><b>Първата снимка</b> (маркирана „Основна“) се вижда в каталога. Подредете със стрелките ← →.</li>
+                <li>Можете да добавите няколко снимки наведнъж. Видеото е по избор.</li>
+                <li>Накрая натиснете <b>Запази продукта</b>.</li>
+              </ol>
+            </div>
             <div class="card"><div class="card-head"><h2>Основна информация</h2></div>
               <div class="card-body">
                 <div class="form-grid">
-                  <div class="field"><label>Име / номер *</label><input class="input" name="name" value="${esc(p.name)}" required placeholder="напр. 01"></div>
-                  <div class="field"><label>Цена (€)</label><input class="input" name="price" type="number" step="0.01" min="0" value="${esc(p.price)}"></div>
+                  <div class="field"><label>Код на продукта *</label><input class="input" name="name" value="${esc(p.name)}" required placeholder="напр. 01, 64 или 094"><span class="hint">Само цифри — номерът на бутилката</span></div>
+                  <div class="field"><label>Цена (€) <span class="hint">само с точка — 12.50</span></label><input class="input" name="price" id="pPrice" type="text" inputmode="decimal" autocomplete="off" value="${esc(p.price)}" placeholder="12.50"></div>
                   <div class="field"><label>Категория</label><select class="input" name="category" id="pCategory">${CATS.map(c => `<option ${c === p.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
-                  <div class="field"><label>Наличност</label><label class="switch"><input type="checkbox" name="available" ${p.available ? "checked" : ""}><span class="track"></span><span id="availTxt">${p.available ? "Наличен" : "Изчерпан"}</span></label></div>
+                  <div class="field field-availability"><label>Наличност</label><label class="switch"><input type="checkbox" name="available" ${p.available ? "checked" : ""}><span class="track"></span><span class="switch-label" id="availTxt">${p.available ? "Наличен" : "Изчерпан"}</span></label></div>
                   <div class="field full"><label>Тагове <span class="hint">(разделени със запетая)</span></label><input class="input" name="tags" value="${esc(tags)}" placeholder="Бутилки, Подаръци"></div>
                   <div class="field full"><label>Описание</label><textarea class="input" name="description" rows="10" placeholder="Размери, детайли, бележки…">${esc(p.description)}</textarea></div>
                 </div>
@@ -384,8 +438,7 @@
             </div>
             <div class="card section-gap"><div class="card-head"><h2>Снимки <span class="hint" id="imgCount"></span></h2></div>
               <div class="card-body">
-                <p class="hint" style="margin-bottom:12px">Добавяне, премахване и подреждане. Първата снимка се показва в каталога.<br>
-                Снимките се записват на <span id="mediaStorageHint">сървъра</span>. Въведете номер на продукта (напр. 64), преди да качите.</p>
+                <p class="hint" style="margin-bottom:12px">Премахване и подреждане със стрелките под всяка снимка. Записват се на <span id="mediaStorageHint">сървъра</span>.</p>
                 <div class="thumbs thumbs-lg" id="imgThumbs"></div>
                 <div class="uploader" id="imgDrop" style="margin-top:14px">${svg("up")} <div>Добави снимки — клик или пусни файлове тук</div><input type="file" id="imgInput" accept="image/*" multiple hidden></div>
               </div>
@@ -415,7 +468,13 @@
         const getSubdir = () => productMediaSubdir({ ...p, name: document.querySelector('[name="name"]').value, category: catEl.value }, catEl.value);
         const requireSubdir = () => {
             const sub = getSubdir();
-            if (!sub) throw new Error("Въведете номер на продукта (напр. 64) преди да качите снимки или видео.");
+            const name = document.querySelector('[name="name"]').value.trim();
+            if (!sub) {
+                if (!/^\d+$/.test(name)) {
+                    throw new Error("Първо въведете код на продукта — само цифри (напр. 01, 64 или 094).");
+                }
+                throw new Error("Неуспешно определяне на папка за снимки.");
+            }
             return sub;
         };
 
@@ -490,6 +549,7 @@
         document.querySelector('[name="available"]').addEventListener("change", e => {
             document.getElementById("availTxt").textContent = e.target.checked ? "Наличен" : "Изчерпан";
         });
+        bindPriceInput(document.getElementById("pPrice"));
 
         const goBack = () => { location.hash = "products"; };
         document.getElementById("pBack").addEventListener("click", goBack);
@@ -497,10 +557,16 @@
 
         const saveProduct = async () => {
             const f = document.getElementById("pForm");
+            const priceParsed = parsePriceInput(f.price.value);
+            if (!priceParsed.ok) {
+                toast(priceParsed.reason === "comma" ? PRICE_COMMA_MSG : "Невалидна цена — само цифри и точка, напр. 12.50.", "err");
+                f.price.focus();
+                return;
+            }
             const body = {
                 id: p.id || 0,
                 name: f.name.value.trim(),
-                price: f.price.value,
+                price: priceParsed.value,
                 category: f.category.value,
                 tags: f.tags.value,
                 description: f.description.value,
