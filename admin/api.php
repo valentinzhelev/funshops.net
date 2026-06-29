@@ -101,6 +101,7 @@ switch ($action) {
             'price'       => is_numeric($priceRaw) ? 0 + $priceRaw : 0,
             'images'      => array_values(array_filter((array)($in['images'] ?? []))),
             'video'       => !empty($in['video']) ? (string)$in['video'] : null,
+            'video_ts'    => !empty($in['video']) ? max(0, (int)($in['video_ts'] ?? time())) : null,
             'description' => (string)($in['description'] ?? ''),
             'tags'        => $tags,
             'category'    => (string)($in['category'] ?? ''),
@@ -389,6 +390,9 @@ switch ($action) {
             if (!in_array($ext, $allowed, true)) json_error('Недопустим формат: ' . htmlspecialchars($orig));
 
             if ($subdir && $kind === 'video') {
+                if (!is_dir($destDir) && !@mkdir($destDir, 0775, true)) {
+                    json_error('Папката ' . $prefix . ' не може да се създаде — проверете правата на images/.');
+                }
                 clear_product_folder_videos($subdir);
                 $fname = '1.' . $ext;
             } elseif ($subdir) {
@@ -401,9 +405,13 @@ switch ($action) {
             }
 
             $relPath = $prefix . $fname;
+            $destFile = $destDir . '/' . $fname;
+            if ($kind === 'video' && !$useBunny && is_file($destFile)) {
+                @unlink($destFile);
+            }
             $ok = $useBunny
                 ? bunny_upload($relPath, $tmps[$i])
-                : move_uploaded_file($tmps[$i], $destDir . '/' . $fname);
+                : move_uploaded_file($tmps[$i], $destFile);
             if ($ok) $saved[] = $relPath;
         }
         if (!$saved) {
@@ -411,7 +419,7 @@ switch ($action) {
             if ($subdir && !is_writable($destDir)) json_error('Папката ' . $prefix . ' не може да се записва — проверете правата на images/ на сървъра.');
             json_error('Качването неуспешно.');
         }
-        json_response(['ok' => true, 'paths' => $saved]);
+        json_response(['ok' => true, 'paths' => $saved, 'uploaded_at' => time()]);
     }
 
     case 'reservations_list': {

@@ -265,7 +265,10 @@ function stream_video_file($fullPath, $mime) {
     if ($httpStatus === 206) {
         header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
     }
-    header('Cache-Control: public, max-age=86400');
+    $mtime = (int)@filemtime($fullPath);
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');
+    header('ETag: W/"' . $mtime . '-' . $size . '"');
+    header('Cache-Control: public, max-age=3600, must-revalidate');
 
     $fh = fopen($fullPath, 'rb');
     if (!$fh) {
@@ -286,7 +289,7 @@ function stream_video_file($fullPath, $mime) {
     exit;
 }
 
-/** Изтрива старо видео (1.mp4, 1.webm …) в папката на продукта преди ново качване. */
+/** Изтрива старо видео в папката на продукта преди ново качване. */
 function clear_product_folder_videos($subdir) {
     $subdir = safe_media_subdir($subdir);
     if (!$subdir) return;
@@ -299,8 +302,13 @@ function clear_product_folder_videos($subdir) {
     }
     $dir = IMAGES_DIR . '/' . $subdir;
     if (!is_dir($dir)) return;
-    foreach (ALLOWED_VIDEO_EXT as $ext) {
-        $f = $dir . '/1.' . $ext;
+    foreach (glob($dir . '/1.*') ?: [] as $f) {
+        if (is_file($f)) @unlink($f);
+    }
+    foreach (glob($dir . '/_upload_*') ?: [] as $f) {
+        if (is_file($f)) @unlink($f);
+    }
+    foreach (glob($dir . '/_convert_*') ?: [] as $f) {
         if (is_file($f)) @unlink($f);
     }
 }

@@ -414,6 +414,7 @@
         const tags = Array.isArray(p.tags) ? p.tags.join(", ") : (p.tags || "");
         let images = [...(p.images || [])].filter(s => !String(s).endsWith(".mp4"));
         let video = p.video || "";
+        let videoTs = p.video_ts || 0;
 
         root.innerHTML = `
           <div class="edit-toolbar">
@@ -487,7 +488,8 @@
 
         const renderVideo = () => {
             if (video) {
-                const src = videoUrl(video, Date.now());
+                const bust = videoTs || Date.now();
+                const src = videoUrl(video, bust);
                 vidBox.innerHTML = `<video class="vid-preview" controls preload="metadata" playsinline src="${src}"></video><p class="hint">${esc(video)}</p>`;
                 vidLabel.textContent = "Смени видеото";
                 vidRemove.hidden = false;
@@ -542,19 +544,24 @@
         dragDrop(imgDrop, async files => { images.push(...await uploadFiles(files, "image", requireSubdir())); renderThumbs(); });
 
         const vidInput = document.getElementById("vidInput");
-        document.getElementById("vidDrop").addEventListener("click", () => vidInput.click());
+        document.getElementById("vidDrop").addEventListener("click", () => {
+            vidInput.value = "";
+            vidInput.click();
+        });
         vidInput.addEventListener("change", async () => {
             if (!vidInput.files.length) return;
             vidLabel.textContent = "Качва се…";
             try {
-                video = (await uploadFiles(vidInput.files, "video", requireSubdir()))[0];
+                const d = await uploadFiles(vidInput.files, "video", requireSubdir(), true);
+                video = d.paths[0];
+                videoTs = d.uploaded_at || Math.floor(Date.now() / 1000);
                 renderVideo();
-                toast("Видеото е качено.");
+                toast("Видеото е качено. Натиснете «Запази продукта».");
             } catch (e) { toast(e.message, "err"); }
             finally { vidLabel.textContent = video ? "Смени видеото" : "Качи видео"; }
             vidInput.value = "";
         });
-        vidRemove.addEventListener("click", () => { video = ""; renderVideo(); });
+        vidRemove.addEventListener("click", () => { video = ""; videoTs = 0; renderVideo(); });
 
         document.querySelector('[name="available"]').addEventListener("change", e => {
             document.getElementById("availTxt").textContent = e.target.checked ? "Наличен" : "Изчерпан";
@@ -582,7 +589,8 @@
                 description: f.description.value,
                 available: f.available.checked,
                 images,
-                video: video || null
+                video: video || null,
+                video_ts: video ? (videoTs || Math.floor(Date.now() / 1000)) : null
             };
             if (!body.name) { toast("Името е задължително.", "err"); return; }
             const d = await api("product_save", { body });
@@ -599,12 +607,13 @@
         });
     };
 
-    async function uploadFiles(fileList, kind, subdir) {
+    async function uploadFiles(fileList, kind, subdir, returnMeta) {
         const fd = new FormData();
         [...fileList].forEach(f => fd.append("files[]", f));
         let q = "&kind=" + kind;
         if (subdir) q += "&subdir=" + encodeURIComponent(subdir);
         const d = await api("upload", { form: fd, query: q });
+        if (returnMeta) return d;
         return d.paths;
     }
     function dragDrop(el, onFiles) {
