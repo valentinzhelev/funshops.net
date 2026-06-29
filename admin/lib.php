@@ -384,7 +384,8 @@ function transcode_video_to_web_mp4($inputPath, $outputPath) {
     @set_time_limit(600);
     @ini_set('max_execution_time', '600');
 
-    $tmpOut = $outputPath . '.part';
+    $dir = dirname($outputPath);
+    $tmpOut = $dir . '/_convert_' . bin2hex(random_bytes(4)) . '.mp4';
     if (is_file($tmpOut)) @unlink($tmpOut);
     if (is_file($outputPath)) @unlink($outputPath);
 
