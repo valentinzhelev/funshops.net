@@ -346,6 +346,107 @@ function webm_duration_seconds($filePath) {
     return null;
 }
 
+/** FFmpeg binary (празно = липсва). */
+function ffmpeg_binary() {
+    static $bin = null;
+    if ($bin !== null) return $bin;
+    if (!function_exists('shell_exec')) return $bin = '';
+
+    foreach (['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'] as $candidate) {
+        $out = (string)@shell_exec(escapeshellcmd($candidate) . ' -version 2>&1');
+        if (stripos($out, 'ffmpeg version') !== false) return $bin = $candidate;
+    }
+    return $bin = '';
+}
+
+function ffmpeg_available() {
+    return ffmpeg_binary() !== '';
+}
+
+/**
+ * Конвертира видео към MP4 (H.264 + AAC) — съвместимо с всички браузъри.
+ * @return bool
+ */
+function transcode_video_to_web_mp4($inputPath, $outputPath) {
+    $ffmpeg = ffmpeg_binary();
+    if ($ffmpeg === '' || !is_file($inputPath) || !is_readable($inputPath)) return false;
+
+    @set_time_limit(600);
+    @ini_set('max_execution_time', '600');
+
+    $tmpOut = $outputPath . '.part';
+    if (is_file($tmpOut)) @unlink($tmpOut);
+
+    $cmd = escapeshellcmd($ffmpeg)
+        . ' -hide_banner -loglevel error -y'
+        . ' -i ' . escapeshellarg($inputPath)
+        . ' -map 0:v:0 -map 0:a:0?'
+        . ' -c:v libx264 -profile:v main -level 3.1 -pix_fmt yuv420p'
+        . ' -vf scale=\'min(1920,iw)\':-2'
+        . ' -movflags +faststart'
+        . ' -c:a aac -b:a 128k -ac 2'
+        . ' ' . escapeshellarg($tmpOut)
+        . ' 2>&1';
+
+    @shell_exec($cmd);
+
+    if (!is_file($tmpOut) || (int)@filesize($tmpOut) <= 0) {
+        @unlink($tmpOut);
+        return false;
+    }
+
+    if (is_file($outputPath)) @unlink($outputPath);
+    if (!@rename($tmpOut, $outputPath)) {
+        if (!@copy($tmpOut, $outputPath)) {
+            @unlink($tmpOut);
+            return false;
+        }
+        @unlink($tmpOut);
+    }
+
+    return is_file($outputPath) && (int)@filesize($outputPath) > 0;
+}
+
+/** Проверява продължителност; при превишение изтрива файла и връща false. */
+function enforce_video_duration_limit($filePath) {
+    $duration = video_file_duration_seconds($filePath);
+    $maxDur = max_video_duration_seconds();
+    if ($duration === null || $duration <= $maxDur + 0.5) return true;
+    @unlink($filePath);
+    return false;
+}
+
+/** Качено видео → винаги 1.mp4 (локално или CDN). Връща относителен път или null. */
+function finalize_product_video_upload($tmpUploadPath, $destDir, $prefix, $useBunny, $storageDir = '') {
+    if (!is_file($tmpUploadPath)) return null;
+
+    $mp4Local = rtrim($destDir, '/\\') . '/1.mp4';
+    if (!transcode_video_to_web_mp4($tmpUploadPath, $mp4Local)) {
+        @unlink($tmpUploadPath);
+        return null;
+    }
+    if ($tmpUploadPath !== $mp4Local && is_file($tmpUploadPath)) @unlink($tmpUploadPath);
+
+    if (!enforce_video_duration_limit($mp4Local)) return null;
+
+    $relPath = $prefix . '1.mp4';
+
+    if ($useBunny) {
+        if (!bunny_upload($relPath, $mp4Local)) {
+            @unlink($mp4Local);
+            return null;
+        }
+    }
+
+    foreach (ALLOWED_VIDEO_EXT as $ext) {
+        if ($ext === 'mp4') continue;
+        $old = $destDir . '/1.' . $ext;
+        if (is_file($old)) @unlink($old);
+    }
+
+    return $relPath;
+}
+
 /** Потоково обслужване на видео с Range (нужно за HTML5 плейъра). */
 function stream_video_file($fullPath, $mime) {
     $size = (int)filesize($fullPath);

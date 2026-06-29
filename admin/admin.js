@@ -469,7 +469,7 @@
             </div>
             <div class="card section-gap"><div class="card-head"><h2>Видео</h2></div>
               <div class="card-body">
-                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта. Формати: mp4, webm, mov, m4v, avi, mkv (най-надеждно: mp4 H.264). Макс. 5 минути.</p>
+                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта. Качва се mov/mp4/webm/avi/mkv — <b>автоматично се конвертира в MP4</b> за сайта. Макс. 5 минути.</p>
                 <div id="vidBox"></div>
                 <div class="row-gap" style="margin-top:12px">
                   <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео</span><input type="file" id="vidInput" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.webm,.mov,.m4v,.avi,.mkv" hidden></div>
@@ -571,7 +571,7 @@
                 }
                 video = (await uploadFiles(vidInput.files, "video", requireSubdir()))[0];
                 renderVideo();
-                toast("Видеото е качено.");
+                toast("Видеото е качено и конвертирано в MP4.");
             } catch (e) { toast(e.message, "err"); }
             vidInput.value = "";
         });

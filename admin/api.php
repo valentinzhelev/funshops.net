@@ -368,6 +368,7 @@ switch ($action) {
             $prefix  = $kind === 'video' ? 'videos/' : 'images/';
         }
         if (!$useBunny && !is_dir($destDir)) @mkdir($destDir, 0775, true);
+        if ($kind === 'video' && $subdir && !is_dir($destDir)) @mkdir($destDir, 0775, true);
 
         $saved = [];
         $files = $_FILES['files'] ?? null;
@@ -390,8 +391,30 @@ switch ($action) {
 
             if ($subdir && $kind === 'video') {
                 clear_product_folder_videos($subdir);
-                $fname = '1.' . $ext;
-            } elseif ($subdir) {
+                $stagingName = '_upload_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                $stagingPath = $destDir . '/' . $stagingName;
+                if (!move_uploaded_file($tmps[$i], $stagingPath)) continue;
+
+                $duration = video_file_duration_seconds($stagingPath);
+                $maxDur = max_video_duration_seconds();
+                if ($duration !== null && $duration > $maxDur + 0.5) {
+                    @unlink($stagingPath);
+                    json_error('Видеото е по-дълго от ' . (int)round($maxDur / 60) . ' минути.');
+                }
+
+                @set_time_limit(600);
+                $relPath = finalize_product_video_upload($stagingPath, $destDir, $prefix, $useBunny, $storageDir);
+                if (!$relPath) {
+                    if (!ffmpeg_available()) {
+                        json_error('Конвертирането изисква FFmpeg на сървъра. Свържете се с хостинга.');
+                    }
+                    json_error('Видеото не можа да се конвертира. Опитайте с друг файл или по-кратко клип.');
+                }
+                $saved[] = $relPath;
+                continue;
+            }
+
+            if ($subdir) {
                 $fname = $useBunny
                     ? bunny_next_image_filename($storageDir, $ext)
                     : next_image_filename($destDir, $ext);
@@ -404,15 +427,6 @@ switch ($action) {
             $ok = $useBunny
                 ? bunny_upload($relPath, $tmps[$i])
                 : move_uploaded_file($tmps[$i], $destDir . '/' . $fname);
-            if ($ok && $kind === 'video' && !$useBunny) {
-                $fullVideo = $destDir . '/' . $fname;
-                $duration = video_file_duration_seconds($fullVideo);
-                $maxDur = max_video_duration_seconds();
-                if ($duration !== null && $duration > $maxDur + 0.5) {
-                    @unlink($fullVideo);
-                    json_error('Видеото е по-дълго от ' . (int)round($maxDur / 60) . ' минути.');
-                }
-            }
             if ($ok) $saved[] = $relPath;
         }
         if (!$saved) {
