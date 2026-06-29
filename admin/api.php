@@ -368,7 +368,6 @@ switch ($action) {
             $prefix  = $kind === 'video' ? 'videos/' : 'images/';
         }
         if (!$useBunny && !is_dir($destDir)) @mkdir($destDir, 0775, true);
-        if ($kind === 'video' && $subdir && !is_dir($destDir)) @mkdir($destDir, 0775, true);
 
         $saved = [];
         $files = $_FILES['files'] ?? null;
@@ -391,41 +390,8 @@ switch ($action) {
 
             if ($subdir && $kind === 'video') {
                 clear_product_folder_videos($subdir);
-                if (!is_dir($destDir) && !@mkdir($destDir, 0775, true)) {
-                    json_error('Папката ' . $prefix . ' не може да се създаде — проверете правата на images/.');
-                }
-                if (!is_writable($destDir)) {
-                    json_error('Папката ' . $prefix . ' не може да се записва — проверете правата на images/.');
-                }
-
-                $stagingName = '_upload_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                $stagingPath = $destDir . '/' . $stagingName;
-                if (!move_uploaded_file($tmps[$i], $stagingPath)) {
-                    json_error('Качването неуспешно — проверете правата на ' . $prefix);
-                }
-
-                $duration = video_file_duration_seconds($stagingPath);
-                $maxDur = max_video_duration_seconds();
-                if ($duration !== null && $duration > $maxDur + 0.5) {
-                    @unlink($stagingPath);
-                    json_error('Видеото е по-дълго от ' . (int)round($maxDur / 60) . ' минути.');
-                }
-
-                @set_time_limit(600);
-                @ini_set('max_execution_time', '600');
-                $final = finalize_product_video_upload($stagingPath, $destDir, $prefix, $useBunny, $storageDir);
-                if (empty($final['ok'])) {
-                    if (!ffmpeg_available()) {
-                        json_error('Конвертирането изисква FFmpeg на сървъра.');
-                    }
-                    $err = trim((string)($final['error'] ?? ''));
-                    json_error($err !== '' ? $err : 'Видеото не можа да се конвертира.');
-                }
-                $saved[] = $final['path'];
-                continue;
-            }
-
-            if ($subdir) {
+                $fname = '1.' . $ext;
+            } elseif ($subdir) {
                 $fname = $useBunny
                     ? bunny_next_image_filename($storageDir, $ext)
                     : next_image_filename($destDir, $ext);

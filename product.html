@@ -176,18 +176,15 @@ document.addEventListener("DOMContentLoaded", () => {
         if (p.video) {
             videoWrap.style.display = "block";
             const vSrc = (S.videoAsset || S.asset)(p.video, p.id);
-            const mime = (S.videoMime || (() => "video/mp4"))(p.video);
             videoEl.innerHTML = "";
-            const source = document.createElement("source");
-            source.src = vSrc;
-            source.type = mime;
-            videoEl.appendChild(source);
+            videoEl.src = vSrc;
             videoEl.onerror = () => { videoErr.hidden = false; };
             videoEl.onloadeddata = () => { videoErr.hidden = true; };
             videoEl.load();
         } else {
             videoWrap.style.display = "none";
-            videoEl.innerHTML = "";
+            videoEl.removeAttribute("src");
+            videoEl.load();
             videoEl.onerror = null;
             videoEl.onloadeddata = null;
         }

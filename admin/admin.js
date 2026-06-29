@@ -8,31 +8,14 @@
         ? window.SITE_ASSET_BASE
         : "../";
     const asset = p => !p ? "" : (/^https?:/i.test(p) ? p : ASSET_BASE + String(p).replace(/^\//, ""));
-    const videoPreviewUrl = p => {
-        if (!p) return "";
-        if (/^https?:/i.test(p)) return p;
-        const path = String(p).replace(/^\//, "").replace(/\\/g, "/");
-        return ASSET_BASE + "video.php?f=" + encodeURIComponent(path) + "&v=" + Date.now();
+    const videoUrl = (path, bust) => {
+        if (!path) return "";
+        if (/^https?:/i.test(path)) return path;
+        const rel = String(path).replace(/^\//, "").replace(/\\/g, "/");
+        let url = ASSET_BASE + "video.php?f=" + encodeURIComponent(rel);
+        if (bust) url += "&v=" + encodeURIComponent(String(bust));
+        return url;
     };
-    const MAX_VIDEO_SEC = 300;
-    async function readVideoDuration(file) {
-        return new Promise((resolve, reject) => {
-            const v = document.createElement("video");
-            v.preload = "metadata";
-            const url = URL.createObjectURL(file);
-            v.onloadedmetadata = () => {
-                URL.revokeObjectURL(url);
-                const d = v.duration;
-                if (!Number.isFinite(d) || d <= 0) reject(new Error("Не може да се прочете видеото."));
-                else resolve(d);
-            };
-            v.onerror = () => {
-                URL.revokeObjectURL(url);
-                reject(new Error("Невалиден видео файл."));
-            };
-            v.src = url;
-        });
-    }
     /* ---------------------- Икони ---------------------- */
     const ICONS = {
         grid:'<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
@@ -469,10 +452,10 @@
             </div>
             <div class="card section-gap"><div class="card-head"><h2>Видео</h2></div>
               <div class="card-body">
-                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта. Качва се mov/mp4/webm/avi/mkv — <b>автоматично се конвертира в MP4</b> за сайта. Макс. 5 минути.</p>
+                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта. Качете <b>MP4</b> (H.264 + AAC) — работи на всички устройства.</p>
                 <div id="vidBox"></div>
                 <div class="row-gap" style="margin-top:12px">
-                  <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео</span><input type="file" id="vidInput" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.webm,.mov,.m4v,.avi,.mkv" hidden></div>
+                  <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео</span><input type="file" id="vidInput" accept="video/mp4,.mp4" hidden></div>
                   <button type="button" class="btn btn-ghost btn-sm" id="vidRemove" ${video ? "" : "hidden"}>Премахни видеото</button>
                 </div>
               </div>
@@ -504,10 +487,8 @@
 
         const renderVideo = () => {
             if (video) {
-                const bust = videoPreviewUrl(video);
-                const ext = String(video).split(".").pop().toLowerCase();
-                const mime = { mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mov: "video/quicktime", avi: "video/x-msvideo", mkv: "video/x-matroska" }[ext] || "video/mp4";
-                vidBox.innerHTML = `<video class="vid-preview" controls preload="metadata" playsinline><source src="${bust}" type="${mime}"></video><p class="hint">${esc(video)}</p>`;
+                const src = videoUrl(video, Date.now());
+                vidBox.innerHTML = `<video class="vid-preview" controls preload="metadata" playsinline src="${src}"></video><p class="hint">${esc(video)}</p>`;
                 vidLabel.textContent = "Смени видеото";
                 vidRemove.hidden = false;
             } else {
@@ -564,24 +545,13 @@
         document.getElementById("vidDrop").addEventListener("click", () => vidInput.click());
         vidInput.addEventListener("change", async () => {
             if (!vidInput.files.length) return;
-            const file = vidInput.files[0];
-            const prevLabel = vidLabel.textContent;
-            vidLabel.textContent = "Качва се и конвертира…";
+            vidLabel.textContent = "Качва се…";
             try {
-                try {
-                    const dur = await readVideoDuration(file);
-                    if (dur > MAX_VIDEO_SEC) {
-                        throw new Error("Видеото е по-дълго от 5 минути (" + Math.ceil(dur / 60) + " мин).");
-                    }
-                } catch (e) {
-                    if (String(e.message || "").includes("5 минути")) throw e;
-                    // Браузърът не чете формата — FFmpeg на сървъра ще го обработи.
-                }
                 video = (await uploadFiles(vidInput.files, "video", requireSubdir()))[0];
                 renderVideo();
-                toast("Видеото е качено и конвертирано в MP4.");
+                toast("Видеото е качено.");
             } catch (e) { toast(e.message, "err"); }
-            finally { vidLabel.textContent = video ? "Смени видеото" : prevLabel; }
+            finally { vidLabel.textContent = video ? "Смени видеото" : "Качи видео"; }
             vidInput.value = "";
         });
         vidRemove.addEventListener("click", () => { video = ""; renderVideo(); });

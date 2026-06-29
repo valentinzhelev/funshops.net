@@ -39,12 +39,7 @@
         return url;
     }
     function videoMime(path) {
-        const ext = String(path || "").split(".").pop().toLowerCase();
-        const map = {
-            mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm",
-            mov: "video/quicktime", avi: "video/x-msvideo", mkv: "video/x-matroska"
-        };
-        return map[ext] || "video/mp4";
+        return String(path || "").toLowerCase().endsWith(".webm") ? "video/webm" : "video/mp4";
     }
     function t(bg, en) { return LANG === "bg" ? bg : en; }
     function money(n) { return Number(n).toFixed(2) + " €"; }
