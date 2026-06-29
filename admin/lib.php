@@ -162,7 +162,14 @@ function safe_image_asset_path($path) {
 }
 
 function bunny_storage_enabled() {
-    return BUNNY_STORAGE_ZONE !== '' && BUNNY_STORAGE_KEY !== '';
+    if (!defined('BUNNY_STORAGE_ZONE') || !defined('BUNNY_STORAGE_KEY')) return false;
+    $zone = trim((string)BUNNY_STORAGE_ZONE);
+    $key  = trim((string)BUNNY_STORAGE_KEY);
+    return $zone !== '' && $key !== '';
+}
+
+function media_storage_label() {
+    return bunny_storage_enabled() ? 'Bunny CDN' : 'сървър (jump.bg)';
 }
 
 function bunny_storage_host() {

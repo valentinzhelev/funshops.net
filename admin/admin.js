@@ -385,7 +385,7 @@
             <div class="card section-gap"><div class="card-head"><h2>Снимки <span class="hint" id="imgCount"></span></h2></div>
               <div class="card-body">
                 <p class="hint" style="margin-bottom:12px">Добавяне, премахване и подреждане. Първата снимка се показва в каталога.<br>
-                Качете снимки тук — те се записват автоматично в облака (CDN).</p>
+                Снимките се записват на <span id="mediaStorageHint">сървъра</span>. Въведете номер на продукта (напр. 64), преди да качите.</p>
                 <div class="thumbs thumbs-lg" id="imgThumbs"></div>
                 <div class="uploader" id="imgDrop" style="margin-top:14px">${svg("up")} <div>Добави снимки — клик или пусни файлове тук</div><input type="file" id="imgInput" accept="image/*" multiple hidden></div>
               </div>
@@ -454,6 +454,11 @@
         };
         renderThumbs();
         renderVideo();
+
+        api("settings_get").then(d => {
+            const el = document.getElementById("mediaStorageHint");
+            if (el && d.media_storage) el.textContent = d.media_storage;
+        }).catch(() => {});
 
         const imgInput = document.getElementById("imgInput");
         const imgDrop = document.getElementById("imgDrop");

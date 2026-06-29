@@ -305,7 +305,12 @@ switch ($action) {
 
     /* ---------------------- НАСТРОЙКИ ---------------------- */
     case 'settings_get':
-        json_response(['ok' => true, 'settings' => read_json(SETTINGS_FILE, default_settings())]);
+        json_response([
+            'ok' => true,
+            'settings' => read_json(SETTINGS_FILE, default_settings()),
+            'media_storage' => media_storage_label(),
+            'bunny_enabled' => bunny_storage_enabled(),
+        ]);
 
     case 'settings_save': {
         if ($method !== 'POST') json_error('POST only');
@@ -327,11 +332,11 @@ switch ($action) {
     /* ---------------------- КАЧВАНЕ НА ФАЙЛОВЕ ---------------------- */
     case 'upload': {
         if ($method !== 'POST') json_error('POST only');
-        if (!function_exists('curl_init')) json_error('Сървърът няма cURL — нужен е за качване в CDN.');
+        $useBunny = bunny_storage_enabled();
+        if ($useBunny && !function_exists('curl_init')) json_error('Сървърът няма cURL — нужен е за качване в CDN.');
         $kind = $_GET['kind'] ?? 'image';
         $allowed = $kind === 'video' ? ALLOWED_VIDEO_EXT : ALLOWED_IMAGE_EXT;
         $subdir = safe_media_subdir($_GET['subdir'] ?? '');
-        $useBunny = bunny_storage_enabled();
 
         if ($subdir) {
             $destDir = IMAGES_DIR . '/' . $subdir;
@@ -375,7 +380,11 @@ switch ($action) {
                 : move_uploaded_file($tmps[$i], $destDir . '/' . $fname);
             if ($ok) $saved[] = $relPath;
         }
-        if (!$saved) json_error($useBunny ? 'Качването в CDN неуспешно — проверете BUNNY_STORAGE_KEY.' : 'Качването неуспешно.');
+        if (!$saved) {
+            if ($useBunny) json_error('Качването в CDN неуспешно — проверете BUNNY_STORAGE_KEY.');
+            if ($subdir && !is_writable($destDir)) json_error('Папката ' . $prefix . ' не може да се записва — проверете правата на images/ на сървъра.');
+            json_error('Качването неуспешно.');
+        }
         json_response(['ok' => true, 'paths' => $saved]);
     }
 
