@@ -152,9 +152,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function visiblePool() {
-        return products.filter(p => p.available && !isHidden(p.id)).map(p => ({
+        return products.filter(p => p.available).map(p => ({
             ...p,
-            _status: S.isProductBlocked(p.id) ? "reserved" : "ok"
+            _status: typeof S.productCatalogStatus === "function"
+                ? S.productCatalogStatus(p.id)
+                : (S.isProductBlocked(p.id) ? "reserved" : "ok")
         }));
     }
 
@@ -281,16 +283,21 @@ document.addEventListener("DOMContentLoaded", () => {
     function card(p, i) {
         const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
         const href = S.productHref(p.id);
-        const reserved = p._status === "reserved";
         const title = S.productTitle(p.name);
-        const foot = reserved
-            ? `<div class="pc-status">Резервирана от друг клиент</div>`
-            : `<div class="pc-foot">
+        let foot;
+        if (p._status === "reserved") {
+            foot = `<div class="pc-status">Резервирана от друг клиент</div>`;
+        } else if (p._status === "mine") {
+            foot = `<div class="pc-status mine">Резервирана за вас · ${S.RES_TTL_MIN} мин.</div>`;
+        } else {
+            foot = `<div class="pc-foot">
                  <span class="pc-price">${p.price} <small>€</small></span>
                  <button class="btn btn-amber btn-sm pc-add" data-id="${p.id}">Добави</button>
                </div>`;
+        }
+        const cardClass = p._status === "reserved" ? " is-reserved" : (p._status === "mine" ? " is-mine" : "");
         return `
-        <article class="product-card reveal${reserved ? " is-reserved" : ""}" style="transition-delay:${(i % 4) * 60}ms">
+        <article class="product-card reveal${cardClass}" style="transition-delay:${(i % 4) * 60}ms">
           <a href="${href}" class="pc-media">
             <img src="${S.asset(img)}" alt="${p.name}" loading="lazy" decoding="async">
             <span class="pc-tag">${p.category}</span>

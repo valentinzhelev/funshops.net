@@ -189,7 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function updateMeta(p, titleTxt) {
-        const url = "https://www.funshops.net/product.html?id=" + p.id;
+        const url = "https://www.funshops.net/product.php?id=" + p.id;
         const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
         const imgAbs = img ? S.asset(img) : "https://www.funshops.net/images/og-cover.png";
         const desc = (p.description || (titleTxt + " — ръчно изработена бутилка с български фолклорен мотив.")).slice(0, 200);

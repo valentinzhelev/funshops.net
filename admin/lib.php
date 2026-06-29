@@ -489,18 +489,20 @@ function sanitize_session_id($id) {
 function order_product_ids($order) {
     $ids = [];
     foreach ($order['products'] ?? [] as $p) {
-        $id = (int)($p['id'] ?? 0);
-        if ($id > 0) $ids[] = $id;
+        if (product_id_valid($p['id'] ?? 0)) $ids[] = $p['id'];
     }
-    return array_values(array_unique($ids));
+    return array_values(array_unique($ids, SORT_REGULAR));
 }
 
 function set_products_availability(array $productIds, $available) {
     if (!$productIds) return;
     $products = read_products();
     foreach ($products as $i => $p) {
-        if (in_array((int)($p['id'] ?? 0), $productIds, true)) {
-            $products[$i]['available'] = (bool)$available;
+        foreach ($productIds as $pid) {
+            if (product_ids_match($p['id'] ?? 0, $pid)) {
+                $products[$i]['available'] = (bool)$available;
+                break;
+            }
         }
     }
     write_products($products);

@@ -7,7 +7,7 @@ deployment:
     - export DEPLOYPATH=/home/studioje/funshops/
     - /bin/rsync -av --exclude '.git' --exclude '.github' --exclude '.gitignore' --exclude '.cpanel.yml' --exclude 'public_html.htaccess' --exclude 'funshops.net.zip' --exclude 'live_admin.html' --exclude 'live_admin_index.html' --exclude '_*.php' --exclude 'images/' --exclude 'admin/config.php' --exclude 'admin/data/orders.json' --exclude 'admin/data/visits.json' --exclude 'admin/data/reservations.json' --exclude 'content.json' --exclude 'config.production.js' --exclude 'config.cdn.js' ./ $DEPLOYPATH
     - /bin/cp -f ./config.production.js $DEPLOYPATH/config.js
-    - /bin/cp -f ./images/.htaccess $DEPLOYPATH/images/.htaccess
+    - test -f ./deploy/images.htaccess && /bin/cp -f ./deploy/images.htaccess $DEPLOYPATH/images/.htaccess || true
     - /bin/chmod 755 $DEPLOYPATH
     - /bin/find $DEPLOYPATH -type d -exec chmod 755 {} \;
     - /bin/find $DEPLOYPATH -type f -exec chmod 644 {} \;

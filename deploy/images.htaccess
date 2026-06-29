@@ -1,0 +1,14 @@
+# Правилни MIME типове за видео в папките на продуктите
+<IfModule mod_mime.c>
+  AddType video/mp4 .mp4 .m4v
+  AddType video/webm .webm
+  AddType video/quicktime .mov
+  AddType video/x-msvideo .avi
+  AddType video/x-matroska .mkv
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(mp4|webm|mov|m4v|avi|mkv)$">
+    Header set Accept-Ranges bytes
+  </FilesMatch>
+</IfModule>

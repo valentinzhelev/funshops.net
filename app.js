@@ -83,16 +83,22 @@
     }
 
     function isInCart(productId) {
-        const id = Number(productId);
-        return getCart().some(i => Number(i.id) === id);
+        return getCart().some(i => String(i.id) === String(productId));
     }
 
     function isProductBlocked(productId) {
-        return isReservedByOther(productId) || getList("soldProducts").includes(productId);
+        return isReservedByOther(productId) || getList("soldProducts").some(id => String(id) === String(productId));
+    }
+
+    /** Статус в каталога: ok | mine (вашата резервация) | reserved (чужда) */
+    function productCatalogStatus(productId) {
+        if (isInCart(productId) || isReservedByMe(productId)) return "mine";
+        if (isReservedByOther(productId)) return "reserved";
+        return "ok";
     }
 
     function isCatalogHidden(productId) {
-        return isInCart(productId) || isReservedByMe(productId);
+        return false;
     }
 
     async function reserveApi(body) {
@@ -291,7 +297,7 @@
             toast(t("Този продукт е резервиран от друг клиент.", "This product is reserved by another customer."), "warn");
             return false;
         }
-        if (cart.some(i => i.id === product.id)) {
+        if (cart.some(i => String(i.id) === String(product.id))) {
             toast(t("Вече е в количката.", "Already in your cart."), "warn");
             return false;
         }
@@ -668,13 +674,13 @@
     window.Shop = {
         asset, videoAsset, videoMime, t, money, LANG, I, RES_TTL_MIN,
         getCart, getList, getSessionId,
-        fetchReservations, isReservedByOther, isReservedByMe, isProductBlocked, isInCart, isCatalogHidden,
+        fetchReservations, isReservedByOther, isReservedByMe, isProductBlocked, isInCart, isCatalogHidden, productCatalogStatus,
         addToCart, removeFromCart, updateBadge, syncCartReservations,
         openDrawer, closeDrawer,
         toast, observeNew,
         fetchProducts, fetchCategories, fetchContent, fetchContentDefaults,
         contentGet, applyCmsContent, renderLegalPlain, renderUvodBody, escHtml,
-        productHref: (id) => "product.html?id=" + id,
+        productHref: (id) => "product.php?id=" + id,
         productTitle: (name) => /^\d+$/.test(String(name).trim()) ? "№ " + name : String(name)
     };
 
