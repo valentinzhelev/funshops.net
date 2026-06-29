@@ -222,6 +222,7 @@ function video_mime_for_ext($ext) {
     $map = [
         'mp4' => 'video/mp4', 'm4v' => 'video/mp4', 'webm' => 'video/webm',
         'mov' => 'video/quicktime', 'avi' => 'video/x-msvideo', 'mkv' => 'video/x-matroska',
+        '3gp' => 'video/3gpp',
     ];
     return $map[$ext] ?? 'video/mp4';
 }
@@ -247,6 +248,13 @@ function video_file_duration_seconds($filePath) {
         if ($dur !== null) return $dur;
     }
     if (function_exists('shell_exec')) {
+        $ffmpeg = ffmpeg_binary();
+        if ($ffmpeg !== '') {
+            $log = (string)@shell_exec(escapeshellcmd($ffmpeg) . ' -i ' . escapeshellarg($filePath) . ' 2>&1');
+            if (preg_match('/Duration:\s(\d+):(\d+):([\d.]+)/', $log, $m)) {
+                return (int)$m[1] * 3600 + (int)$m[2] * 60 + (float)$m[3];
+            }
+        }
         $probe = trim((string)@shell_exec('command -v ffprobe 2>/dev/null'));
         if ($probe === '') $probe = trim((string)@shell_exec('where ffprobe 2>nul'));
         if ($probe !== '') {
@@ -365,46 +373,82 @@ function ffmpeg_available() {
 
 /**
  * Конвертира видео към MP4 (H.264 + AAC) — съвместимо с всички браузъри.
- * @return bool
+ * @return array{ok:bool,log:string}
  */
 function transcode_video_to_web_mp4($inputPath, $outputPath) {
     $ffmpeg = ffmpeg_binary();
-    if ($ffmpeg === '' || !is_file($inputPath) || !is_readable($inputPath)) return false;
+    if ($ffmpeg === '' || !is_file($inputPath) || !is_readable($inputPath)) {
+        return ['ok' => false, 'log' => 'Липсва FFmpeg или входният файл.'];
+    }
 
     @set_time_limit(600);
     @ini_set('max_execution_time', '600');
 
     $tmpOut = $outputPath . '.part';
     if (is_file($tmpOut)) @unlink($tmpOut);
-
-    $cmd = escapeshellcmd($ffmpeg)
-        . ' -hide_banner -loglevel error -y'
-        . ' -i ' . escapeshellarg($inputPath)
-        . ' -map 0:v:0 -map 0:a:0?'
-        . ' -c:v libx264 -profile:v main -level 3.1 -pix_fmt yuv420p'
-        . ' -vf scale=\'min(1920,iw)\':-2'
-        . ' -movflags +faststart'
-        . ' -c:a aac -b:a 128k -ac 2'
-        . ' ' . escapeshellarg($tmpOut)
-        . ' 2>&1';
-
-    @shell_exec($cmd);
-
-    if (!is_file($tmpOut) || (int)@filesize($tmpOut) <= 0) {
-        @unlink($tmpOut);
-        return false;
-    }
-
     if (is_file($outputPath)) @unlink($outputPath);
-    if (!@rename($tmpOut, $outputPath)) {
-        if (!@copy($tmpOut, $outputPath)) {
+
+    $baseVideo = [
+        '-hide_banner', '-loglevel', 'error', '-y',
+        '-i', $inputPath,
+        '-c:v', 'libx264', '-preset', 'fast', '-profile:v', 'main', '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
+    ];
+
+    $attempts = [
+        array_merge($baseVideo, ['-c:a', 'aac', '-b:a', '128k', '-ac', '2', $tmpOut]),
+        array_merge($baseVideo, ['-an', $tmpOut]),
+        ['-hide_banner', '-loglevel', 'error', '-y', '-i', $inputPath, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', $tmpOut],
+        ['-hide_banner', '-loglevel', 'error', '-y', '-i', $inputPath, '-c', 'copy', '-movflags', '+faststart', $tmpOut],
+    ];
+
+    $lastLog = '';
+    foreach ($attempts as $args) {
+        if (is_file($tmpOut)) @unlink($tmpOut);
+        $run = ffmpeg_run($args);
+        $lastLog = $run['log'];
+        if (!is_file($tmpOut) || (int)@filesize($tmpOut) <= 0) continue;
+
+        if (!@rename($tmpOut, $outputPath)) {
+            if (!@copy($tmpOut, $outputPath)) {
+                @unlink($tmpOut);
+                continue;
+            }
             @unlink($tmpOut);
-            return false;
         }
-        @unlink($tmpOut);
+
+        if (is_file($outputPath) && (int)@filesize($outputPath) > 0) {
+            return ['ok' => true, 'log' => ''];
+        }
     }
 
-    return is_file($outputPath) && (int)@filesize($outputPath) > 0;
+    @unlink($tmpOut);
+    return ['ok' => false, 'log' => $lastLog ?: 'FFmpeg не успя да създаде MP4.'];
+}
+
+/** @return array{ok:bool,log:string,code?:int} */
+function ffmpeg_run(array $args) {
+    $ffmpeg = ffmpeg_binary();
+    if ($ffmpeg === '') return ['ok' => false, 'log' => 'FFmpeg липсва'];
+
+    $parts = array_merge([$ffmpeg], $args);
+    $cmd = '';
+    foreach ($parts as $i => $part) {
+        $cmd .= ($i ? ' ' : '') . escapeshellarg((string)$part);
+    }
+    $cmd .= ' 2>&1';
+
+    if (function_exists('shell_exec')) {
+        $log = (string)@shell_exec($cmd);
+        return ['ok' => true, 'log' => $log];
+    }
+    if (function_exists('exec')) {
+        $lines = [];
+        $code = 1;
+        @exec($cmd, $lines, $code);
+        return ['ok' => $code === 0, 'log' => implode("\n", $lines), 'code' => $code];
+    }
+    return ['ok' => false, 'log' => 'exec/shell_exec са изключени'];
 }
 
 /** Проверява продължителност; при превишение изтрива файла и връща false. */
@@ -416,25 +460,35 @@ function enforce_video_duration_limit($filePath) {
     return false;
 }
 
-/** Качено видео → винаги 1.mp4 (локално или CDN). Връща относителен път или null. */
+/**
+ * Качено видео → винаги 1.mp4 (локално или CDN).
+ * @return array{ok:bool,path?:string,error?:string}
+ */
 function finalize_product_video_upload($tmpUploadPath, $destDir, $prefix, $useBunny, $storageDir = '') {
-    if (!is_file($tmpUploadPath)) return null;
+    if (!is_file($tmpUploadPath)) {
+        return ['ok' => false, 'error' => 'Каченият файл липсва.'];
+    }
 
     $mp4Local = rtrim($destDir, '/\\') . '/1.mp4';
-    if (!transcode_video_to_web_mp4($tmpUploadPath, $mp4Local)) {
+    $result = transcode_video_to_web_mp4($tmpUploadPath, $mp4Local);
+    if (!$result['ok']) {
         @unlink($tmpUploadPath);
-        return null;
+        $log = trim(preg_replace('/\s+/', ' ', (string)($result['log'] ?? '')));
+        if (strlen($log) > 160) $log = substr($log, 0, 160) . '…';
+        return ['ok' => false, 'error' => $log ?: 'Конвертирането неуспешно.'];
     }
     if ($tmpUploadPath !== $mp4Local && is_file($tmpUploadPath)) @unlink($tmpUploadPath);
 
-    if (!enforce_video_duration_limit($mp4Local)) return null;
+    if (!enforce_video_duration_limit($mp4Local)) {
+        return ['ok' => false, 'error' => 'Видеото е по-дълго от ' . (int)round(max_video_duration_seconds() / 60) . ' минути.'];
+    }
 
     $relPath = $prefix . '1.mp4';
 
     if ($useBunny) {
         if (!bunny_upload($relPath, $mp4Local)) {
             @unlink($mp4Local);
-            return null;
+            return ['ok' => false, 'error' => 'Качването в CDN неуспешно.'];
         }
     }
 
@@ -444,7 +498,7 @@ function finalize_product_video_upload($tmpUploadPath, $destDir, $prefix, $useBu
         if (is_file($old)) @unlink($old);
     }
 
-    return $relPath;
+    return ['ok' => true, 'path' => $relPath];
 }
 
 /** Потоково обслужване на видео с Range (нужно за HTML5 плейъра). */

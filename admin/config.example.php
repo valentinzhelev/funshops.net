@@ -39,7 +39,7 @@ define('IMAGES_DIR', ROOT_DIR . '/images');
 define('VIDEOS_DIR', ROOT_DIR . '/videos');
 
 const ALLOWED_IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
-const ALLOWED_VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'avi', 'mkv'];
+const ALLOWED_VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'avi', 'mkv', '3gp'];
 const MAX_UPLOAD_BYTES       = 60 * 1024 * 1024;   // снимки — 60 MB
 const MAX_VIDEO_DURATION_SEC = 300;                 // видео — 5 минути
 const MAX_VIDEO_UPLOAD_BYTES = 800 * 1024 * 1024;   // резервен таван (само ако duration не се прочете)

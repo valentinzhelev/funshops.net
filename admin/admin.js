@@ -564,15 +564,24 @@
         document.getElementById("vidDrop").addEventListener("click", () => vidInput.click());
         vidInput.addEventListener("change", async () => {
             if (!vidInput.files.length) return;
+            const file = vidInput.files[0];
+            const prevLabel = vidLabel.textContent;
+            vidLabel.textContent = "Качва се и конвертира…";
             try {
-                const dur = await readVideoDuration(vidInput.files[0]);
-                if (dur > MAX_VIDEO_SEC) {
-                    throw new Error("Видеото е по-дълго от 5 минути (" + Math.ceil(dur / 60) + " мин).");
+                try {
+                    const dur = await readVideoDuration(file);
+                    if (dur > MAX_VIDEO_SEC) {
+                        throw new Error("Видеото е по-дълго от 5 минути (" + Math.ceil(dur / 60) + " мин).");
+                    }
+                } catch (e) {
+                    if (String(e.message || "").includes("5 минути")) throw e;
+                    // Браузърът не чете формата — FFmpeg на сървъра ще го обработи.
                 }
                 video = (await uploadFiles(vidInput.files, "video", requireSubdir()))[0];
                 renderVideo();
                 toast("Видеото е качено и конвертирано в MP4.");
             } catch (e) { toast(e.message, "err"); }
+            finally { vidLabel.textContent = video ? "Смени видеото" : prevLabel; }
             vidInput.value = "";
         });
         vidRemove.addEventListener("click", () => { video = ""; renderVideo(); });

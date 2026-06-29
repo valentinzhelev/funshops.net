@@ -391,9 +391,18 @@ switch ($action) {
 
             if ($subdir && $kind === 'video') {
                 clear_product_folder_videos($subdir);
+                if (!is_dir($destDir) && !@mkdir($destDir, 0775, true)) {
+                    json_error('Папката ' . $prefix . ' не може да се създаде — проверете правата на images/.');
+                }
+                if (!is_writable($destDir)) {
+                    json_error('Папката ' . $prefix . ' не може да се записва — проверете правата на images/.');
+                }
+
                 $stagingName = '_upload_' . bin2hex(random_bytes(4)) . '.' . $ext;
                 $stagingPath = $destDir . '/' . $stagingName;
-                if (!move_uploaded_file($tmps[$i], $stagingPath)) continue;
+                if (!move_uploaded_file($tmps[$i], $stagingPath)) {
+                    json_error('Качването неуспешно — проверете правата на ' . $prefix);
+                }
 
                 $duration = video_file_duration_seconds($stagingPath);
                 $maxDur = max_video_duration_seconds();
@@ -403,14 +412,16 @@ switch ($action) {
                 }
 
                 @set_time_limit(600);
-                $relPath = finalize_product_video_upload($stagingPath, $destDir, $prefix, $useBunny, $storageDir);
-                if (!$relPath) {
+                @ini_set('max_execution_time', '600');
+                $final = finalize_product_video_upload($stagingPath, $destDir, $prefix, $useBunny, $storageDir);
+                if (empty($final['ok'])) {
                     if (!ffmpeg_available()) {
-                        json_error('Конвертирането изисква FFmpeg на сървъра. Свържете се с хостинга.');
+                        json_error('Конвертирането изисква FFmpeg на сървъра.');
                     }
-                    json_error('Видеото не можа да се конвертира. Опитайте с друг файл или по-кратко клип.');
+                    $err = trim((string)($final['error'] ?? ''));
+                    json_error($err !== '' ? $err : 'Видеото не можа да се конвертира.');
                 }
-                $saved[] = $relPath;
+                $saved[] = $final['path'];
                 continue;
             }
 
