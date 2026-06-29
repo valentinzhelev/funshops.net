@@ -53,6 +53,10 @@
     let reservationsCache = [];
     let reservationsPromise = null;
 
+    function productIdEq(a, b) {
+        return String(a) === String(b);
+    }
+
     function getSessionId() {
         let id = localStorage.getItem("shopSessionId");
         if (!id || id.length < 8) {
@@ -63,11 +67,12 @@
     }
 
     async function fetchReservations(force) {
-        if (reservationsPromise && !force) return reservationsPromise;
+        if (force) reservationsPromise = null;
+        if (reservationsPromise) return reservationsPromise;
         reservationsPromise = fetch("reserve.php?session_id=" + encodeURIComponent(getSessionId()) + "&nocache=" + Date.now())
             .then(r => r.json())
             .then(d => {
-                reservationsCache = (d.ok && d.reservations) ? d.reservations : [];
+                reservationsCache = (d.ok && Array.isArray(d.reservations)) ? d.reservations : [];
                 return reservationsCache;
             })
             .catch(() => reservationsCache);
@@ -75,15 +80,15 @@
     }
 
     function isReservedByOther(productId) {
-        return reservationsCache.some(r => String(r.product_id) === String(productId) && !r.mine);
+        return reservationsCache.some(r => productIdEq(r.product_id, productId) && !r.mine);
     }
 
     function isReservedByMe(productId) {
-        return reservationsCache.some(r => String(r.product_id) === String(productId) && r.mine);
+        return reservationsCache.some(r => productIdEq(r.product_id, productId) && r.mine);
     }
 
     function isInCart(productId) {
-        return getCart().some(i => String(i.id) === String(productId));
+        return getCart().some(i => productIdEq(i.id, productId));
     }
 
     function isProductBlocked(productId) {
@@ -297,7 +302,7 @@
             toast(t("Този продукт е резервиран от друг клиент.", "This product is reserved by another customer."), "warn");
             return false;
         }
-        if (cart.some(i => String(i.id) === String(product.id))) {
+        if (cart.some(i => productIdEq(i.id, product.id))) {
             toast(t("Вече е в количката.", "Already in your cart."), "warn");
             return false;
         }
@@ -470,12 +475,8 @@
         document.body.appendChild(back);
     }
 
-    /* ---------------------- Session cart cleanup (запазено) ---------------------- */
+    /* ---------------------- Session (без триене на количка между табове) ---------------------- */
     function sessionCleanup() {
-        if (!sessionStorage.getItem("sessionActive")) {
-            localStorage.removeItem("cart");
-            reserveApi({ action: "clear" }).catch(() => {});
-        }
         sessionStorage.setItem("sessionActive", "true");
     }
 
@@ -705,7 +706,14 @@
         updateBadge();
         initCms();
         fetchReservations().then(() => syncCartReservations()).catch(() => {});
-        setInterval(() => fetchReservations(true).then(() => document.dispatchEvent(new CustomEvent("reservations:changed"))), 45000);
+        setInterval(() => {
+            fetchReservations(true).then(() => document.dispatchEvent(new CustomEvent("reservations:changed")));
+        }, 15000);
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                fetchReservations(true).then(() => document.dispatchEvent(new CustomEvent("reservations:changed")));
+            }
+        });
         initReveal();
         initCounters();
         initCookies();

@@ -357,7 +357,19 @@ function reservation_ttl_minutes() {
 
 function read_reservations() {
     cleanup_expired_reservations();
-    return read_json(RESERVATIONS_FILE, []);
+    $rows = read_json(RESERVATIONS_FILE, []);
+    $dirty = false;
+    foreach ($rows as &$r) {
+        $k = product_id_key($r['product_id'] ?? '');
+        if ($k === '' || $k === '0') continue;
+        if (($r['product_id'] ?? '') !== $k) {
+            $r['product_id'] = $k;
+            $dirty = true;
+        }
+    }
+    unset($r);
+    if ($dirty) write_reservations($rows);
+    return $rows;
 }
 
 function write_reservations($rows) {
@@ -391,7 +403,7 @@ function reserve_product($productId, $sessionId) {
     }
     if (!$product || empty($product['available'])) return ['ok' => false, 'error' => 'Продуктът не е наличен.'];
 
-    $storedId = $product['id'];
+    $storedId = product_id_key($product['id']);
     $rows = read_reservations();
     $existing = find_reservation($storedId, $rows);
     if ($existing && ($existing['session_id'] ?? '') !== $sessionId) {
@@ -470,8 +482,8 @@ function reservations_public($sessionId = '') {
     $sessionId = sanitize_session_id($sessionId);
     $out = [];
     foreach (read_reservations() as $r) {
-        $pid = $r['product_id'] ?? 0;
-        if (is_string($pid) && ctype_digit($pid)) $pid = 0 + $pid;
+        $pid = product_id_key($r['product_id'] ?? '');
+        if ($pid === '' || $pid === '0') continue;
         $out[] = [
             'product_id' => $pid,
             'expires_at' => (int)($r['expires_at'] ?? 0),
