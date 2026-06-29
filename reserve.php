@@ -33,13 +33,13 @@ if (!$session) json_error('Невалидна сесия.');
 
 switch ($action) {
     case 'hold': {
-        $pid = (int)($in['product_id'] ?? 0);
+        $pid = $in['product_id'] ?? 0;
         $res = reserve_product($pid, $session);
         if (!$res['ok']) json_error($res['error'] ?? 'Грешка.');
         json_response(['ok' => true, 'ttl_minutes' => reservation_ttl_minutes()]);
     }
     case 'release': {
-        release_product((int)($in['product_id'] ?? 0), $session);
+        release_product($in['product_id'] ?? 0, $session);
         json_response(['ok' => true]);
     }
     case 'sync': {

@@ -248,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.addEventListener("click", async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const p = products.find(x => x.id === Number(btn.dataset.id));
+                const p = products.find(x => String(x.id) === String(btn.dataset.id));
                 if (p && (await S.addToCart(p))) { renderCats(); render(); }
             });
         });

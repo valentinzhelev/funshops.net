@@ -118,6 +118,51 @@ function read_body() {
     return is_array($data) ? $data : [];
 }
 
+/** Нов уникален ID за продукт (millisecond timestamp). */
+function new_product_id() {
+    return (int)round(microtime(true) * 1000);
+}
+
+/** Нормализира product ID за сравнение (големи JSON числа на 32-bit PHP). */
+function product_id_key($id) {
+    if ($id === null || $id === '' || $id === false) return '';
+    if (is_float($id)) return sprintf('%.0f', $id);
+    if (is_int($id)) return (string)$id;
+    $s = trim((string)$id);
+    return ($s !== '' && preg_match('/^\d+$/', $s)) ? $s : '';
+}
+
+function product_id_valid($id) {
+    $k = product_id_key($id);
+    return $k !== '' && $k !== '0';
+}
+
+function product_ids_match($a, $b) {
+    $ka = product_id_key($a);
+    $kb = product_id_key($b);
+    return $ka !== '' && $ka === $kb;
+}
+
+/** Поправя продукти без валиден ID (напр. id: 0 след първо записване). */
+function repair_products_invalid_ids(array &$products) {
+    $changed = false;
+    $used = [];
+    foreach ($products as $p) {
+        if (product_id_valid($p['id'] ?? 0)) $used[product_id_key($p['id'])] = true;
+    }
+    foreach ($products as &$p) {
+        if (product_id_valid($p['id'] ?? 0)) continue;
+        do {
+            $p['id'] = new_product_id();
+            usleep(1000);
+        } while (isset($used[product_id_key($p['id'])]));
+        $used[product_id_key($p['id'])] = true;
+        $changed = true;
+    }
+    unset($p);
+    return $changed;
+}
+
 /** Безопасно име на файл за качване (корен на images/). */
 function safe_filename($name, $allowed_ext) {
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
@@ -140,6 +185,15 @@ function safe_media_subdir($subdir) {
     return $m[1] . '/' . $folder;
 }
 
+/** products/01 от път images/products/01/1.mp4 */
+function product_video_subdir($path) {
+    $path = ltrim(str_replace('\\', '/', (string)$path), '/');
+    if (preg_match('#^images/(products|packages)/(\d+)/#', $path, $m)) {
+        return $m[1] . '/' . normalize_product_folder($m[2]);
+    }
+    return '';
+}
+
 /** Следващ номер за снимка в папка на продукт (2.png, 3.png …). */
 function next_image_filename($dir, $ext) {
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
@@ -150,6 +204,41 @@ function next_image_filename($dir, $ext) {
         if ($n > $max) $max = $n;
     }
     return ($max + 1) . '.' . $ext;
+}
+
+/** Макс. размер при качване (байтове) — отделен лимит за видео. */
+function max_upload_bytes_for($kind) {
+    if ($kind === 'video' && defined('MAX_VIDEO_UPLOAD_BYTES')) return (int)MAX_VIDEO_UPLOAD_BYTES;
+    return defined('MAX_UPLOAD_BYTES') ? (int)MAX_UPLOAD_BYTES : 60 * 1024 * 1024;
+}
+
+/** Изтрива старо видео (1.mp4, 1.webm …) в папката на продукта преди ново качване. */
+function clear_product_folder_videos($subdir) {
+    $subdir = safe_media_subdir($subdir);
+    if (!$subdir) return;
+    $storageDir = 'images/' . $subdir;
+    if (bunny_storage_enabled()) {
+        foreach (ALLOWED_VIDEO_EXT as $ext) {
+            bunny_delete($storageDir . '/1.' . $ext);
+        }
+        return;
+    }
+    $dir = IMAGES_DIR . '/' . $subdir;
+    if (!is_dir($dir)) return;
+    foreach (ALLOWED_VIDEO_EXT as $ext) {
+        $f = $dir . '/1.' . $ext;
+        if (is_file($f)) @unlink($f);
+    }
+}
+
+/** Изтрива файл от images/products|packages (локално или CDN). */
+function delete_media_asset($path) {
+    $path = safe_image_asset_path($path);
+    if (!$path) return false;
+    if (bunny_storage_enabled()) return bunny_delete($path);
+    $full = resolve_image_path($path);
+    if (!$full) return false;
+    return @unlink($full);
 }
 
 /** Проверка дали път е в images/ (вкл. подпапки). */
@@ -286,25 +375,25 @@ function cleanup_expired_reservations() {
 function find_reservation($productId, $rows = null) {
     $rows = $rows ?? read_reservations();
     foreach ($rows as $r) {
-        if ((int)($r['product_id'] ?? 0) === (int)$productId) return $r;
+        if (product_ids_match($r['product_id'] ?? 0, $productId)) return $r;
     }
     return null;
 }
 
 function reserve_product($productId, $sessionId) {
-    $productId = (int)$productId;
     $sessionId = sanitize_session_id($sessionId);
-    if (!$productId || !$sessionId) return ['ok' => false, 'error' => 'Невалидни данни.'];
+    if (!product_id_valid($productId) || !$sessionId) return ['ok' => false, 'error' => 'Невалидни данни.'];
 
     $products = read_products();
     $product = null;
     foreach ($products as $p) {
-        if ((int)$p['id'] === $productId) { $product = $p; break; }
+        if (product_ids_match($p['id'] ?? 0, $productId)) { $product = $p; break; }
     }
     if (!$product || empty($product['available'])) return ['ok' => false, 'error' => 'Продуктът не е наличен.'];
 
+    $storedId = $product['id'];
     $rows = read_reservations();
-    $existing = find_reservation($productId, $rows);
+    $existing = find_reservation($storedId, $rows);
     if ($existing && ($existing['session_id'] ?? '') !== $sessionId) {
         return ['ok' => false, 'error' => 'Резервиран от друг клиент.'];
     }
@@ -312,26 +401,25 @@ function reserve_product($productId, $sessionId) {
     $expires = time() + reservation_ttl_seconds();
     $found = false;
     foreach ($rows as $i => $r) {
-        if ((int)($r['product_id'] ?? 0) === $productId) {
-            $rows[$i] = ['product_id' => $productId, 'session_id' => $sessionId, 'expires_at' => $expires, 'updated_at' => time()];
+        if (product_ids_match($r['product_id'] ?? 0, $storedId)) {
+            $rows[$i] = ['product_id' => $storedId, 'session_id' => $sessionId, 'expires_at' => $expires, 'updated_at' => time()];
             $found = true;
             break;
         }
     }
-    if (!$found) $rows[] = ['product_id' => $productId, 'session_id' => $sessionId, 'expires_at' => $expires, 'updated_at' => time()];
+    if (!$found) $rows[] = ['product_id' => $storedId, 'session_id' => $sessionId, 'expires_at' => $expires, 'updated_at' => time()];
     if (!write_reservations($rows)) return ['ok' => false, 'error' => 'Неуспешен запис на резервация. Проверете правата на admin/data/.'];
     return ['ok' => true];
 }
 
 function release_product($productId, $sessionId) {
-    $productId = (int)$productId;
     $sessionId = sanitize_session_id($sessionId);
-    if (!$productId || !$sessionId) return;
+    if (!product_id_valid($productId) || !$sessionId) return;
 
     $rows = read_reservations();
     $before = count($rows);
     $rows = array_values(array_filter($rows, fn($r) =>
-        !((int)($r['product_id'] ?? 0) === $productId && ($r['session_id'] ?? '') === $sessionId)
+        !(product_ids_match($r['product_id'] ?? 0, $productId) && ($r['session_id'] ?? '') === $sessionId)
     ));
     if (count($rows) !== $before) write_reservations($rows);
 }
@@ -349,12 +437,17 @@ function release_session($sessionId) {
 function sync_session_reservations($sessionId, array $productIds) {
     $sessionId = sanitize_session_id($sessionId);
     if (!$sessionId) return;
-    $want = array_values(array_unique(array_filter(array_map('intval', $productIds), fn($id) => $id > 0)));
+    $want = [];
+    foreach ($productIds as $id) {
+        $k = product_id_key($id);
+        if (product_id_valid($id)) $want[$k] = $id;
+    }
     $rows = read_reservations();
 
     foreach ($rows as $r) {
-        if (($r['session_id'] ?? '') === $sessionId && !in_array((int)($r['product_id'] ?? 0), $want, true)) {
-            release_product((int)$r['product_id'], $sessionId);
+        $rk = product_id_key($r['product_id'] ?? 0);
+        if (($r['session_id'] ?? '') === $sessionId && !isset($want[$rk])) {
+            release_product($r['product_id'], $sessionId);
         }
     }
     foreach ($want as $pid) {
@@ -363,9 +456,13 @@ function sync_session_reservations($sessionId, array $productIds) {
 }
 
 function clear_reservations_for_products(array $productIds) {
-    $ids = array_map('intval', $productIds);
+    $keys = [];
+    foreach ($productIds as $id) {
+        $k = product_id_key($id);
+        if (product_id_valid($id)) $keys[$k] = true;
+    }
     $rows = read_reservations();
-    $rows = array_values(array_filter($rows, fn($r) => !in_array((int)($r['product_id'] ?? 0), $ids, true)));
+    $rows = array_values(array_filter($rows, fn($r) => !isset($keys[product_id_key($r['product_id'] ?? 0)])));
     write_reservations($rows);
 }
 
@@ -373,8 +470,10 @@ function reservations_public($sessionId = '') {
     $sessionId = sanitize_session_id($sessionId);
     $out = [];
     foreach (read_reservations() as $r) {
+        $pid = $r['product_id'] ?? 0;
+        if (is_string($pid) && ctype_digit($pid)) $pid = 0 + $pid;
         $out[] = [
-            'product_id' => (int)($r['product_id'] ?? 0),
+            'product_id' => $pid,
             'expires_at' => (int)($r['expires_at'] ?? 0),
             'mine'       => $sessionId !== '' && ($r['session_id'] ?? '') === $sessionId,
         ];

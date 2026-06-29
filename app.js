@@ -29,6 +29,14 @@
         const base = typeof window.SITE_ASSET_BASE === "string" ? window.SITE_ASSET_BASE : ASSET_BASE;
         return base + String(p).replace(/^\//, "").replace(/\\\//g, "/");
     }
+    function videoMime(path) {
+        const ext = String(path || "").split(".").pop().toLowerCase();
+        const map = {
+            mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm",
+            mov: "video/quicktime", avi: "video/x-msvideo", mkv: "video/x-matroska"
+        };
+        return map[ext] || "video/mp4";
+    }
     function t(bg, en) { return LANG === "bg" ? bg : en; }
     function money(n) { return Number(n).toFixed(2) + " €"; }
     function getCart() { try { return JSON.parse(localStorage.getItem("cart")) || []; } catch (e) { return []; } }
@@ -61,11 +69,11 @@
     }
 
     function isReservedByOther(productId) {
-        return reservationsCache.some(r => r.product_id === productId && !r.mine);
+        return reservationsCache.some(r => String(r.product_id) === String(productId) && !r.mine);
     }
 
     function isReservedByMe(productId) {
-        return reservationsCache.some(r => r.product_id === productId && r.mine);
+        return reservationsCache.some(r => String(r.product_id) === String(productId) && r.mine);
     }
 
     function isInCart(productId) {
@@ -463,8 +471,8 @@
     let productsPromise = null;
     function fetchProducts() {
         if (productsPromise) return productsPromise;
-        productsPromise = fetch("products.json?nocache=" + Date.now())
-            .then(r => r.json())
+        productsPromise = fetch("products.php?nocache=" + Date.now())
+            .then(r => r.ok ? r.json() : fetch("products.json?nocache=" + Date.now()).then(r2 => r2.json()))
             .then(data => { window.products = data; return data; })
             .catch(err => { console.error("Грешка при зареждане на продуктите:", err); return []; });
         return productsPromise;
@@ -652,7 +660,7 @@
 
     /* ---------------------- Публичен API ---------------------- */
     window.Shop = {
-        asset, t, money, LANG, I, RES_TTL_MIN,
+        asset, videoMime, t, money, LANG, I, RES_TTL_MIN,
         getCart, getList, getSessionId,
         fetchReservations, isReservedByOther, isReservedByMe, isProductBlocked, isInCart, isCatalogHidden,
         addToCart, removeFromCart, updateBadge, syncCartReservations,

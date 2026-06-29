@@ -41,8 +41,14 @@ const NTFY_TOPIC         = '';
 
 /* --- Разрешени файлови формати при качване --- */
 const ALLOWED_IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
-const ALLOWED_VIDEO_EXT = ['mp4', 'webm', 'mov'];
-const MAX_UPLOAD_BYTES   = 60 * 1024 * 1024; // 60 MB
+const ALLOWED_VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'avi', 'mkv'];
+const MAX_UPLOAD_BYTES       = 60 * 1024 * 1024;  // снимки — 60 MB
+const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // видео — 100 MB
+
+/* Bunny CDN — оставете празно за локални снимки на jump.bg (препоръчително) */
+const BUNNY_STORAGE_ZONE   = '';
+const BUNNY_STORAGE_KEY    = '';
+const BUNNY_STORAGE_REGION = 'de';
 
 /* --- Часова зона --- */
 date_default_timezone_set('Europe/Sofia');

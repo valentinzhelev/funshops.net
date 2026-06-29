@@ -75,6 +75,7 @@ switch ($action) {
     /* ---------------------- ПРОДУКТИ ---------------------- */
     case 'products_list': {
         $products = read_products();
+        if (repair_products_invalid_ids($products)) write_products($products);
         $payload = ['ok' => true, 'products' => $products];
         if (!$products) $payload['meta'] = products_file_diagnostics();
         json_response($payload);
@@ -84,14 +85,18 @@ switch ($action) {
         if ($method !== 'POST') json_error('POST only');
         $in = read_body();
         $products = read_products();
+        if (repair_products_invalid_ids($products)) write_products($products);
 
         $tags = $in['tags'] ?? [];
         if (is_string($tags)) $tags = array_values(array_filter(array_map('trim', explode(',', $tags))));
 
         $priceRaw = str_replace(',', '.', trim((string)($in['price'] ?? '')));
 
+        $requestedId = array_key_exists('id', $in) ? $in['id'] : 0;
+        $productId = product_id_valid($requestedId) ? (0 + product_id_key($requestedId)) : new_product_id();
+
         $item = [
-            'id'          => (int)($in['id'] ?? round(microtime(true) * 1000)),
+            'id'          => $productId,
             'name'        => trim((string)($in['name'] ?? '')),
             'price'       => is_numeric($priceRaw) ? 0 + $priceRaw : 0,
             'images'      => array_values(array_filter((array)($in['images'] ?? []))),
@@ -103,9 +108,22 @@ switch ($action) {
         ];
         if ($item['name'] === '') json_error('Името е задължително.');
 
+        $oldVideo = null;
+        foreach ($products as $p) {
+            if (product_ids_match($p['id'] ?? 0, $item['id'])) {
+                $oldVideo = !empty($p['video']) ? (string)$p['video'] : null;
+                break;
+            }
+        }
+        if ($oldVideo && empty($item['video'])) {
+            clear_product_folder_videos(product_video_subdir($oldVideo));
+        } elseif ($oldVideo && $oldVideo !== $item['video']) {
+            delete_media_asset($oldVideo);
+        }
+
         $found = false;
         foreach ($products as $i => $p) {
-            if ((int)$p['id'] === $item['id']) { $products[$i] = $item; $found = true; break; }
+            if (product_ids_match($p['id'] ?? 0, $item['id'])) { $products[$i] = $item; $found = true; break; }
         }
         if (!$found) $products[] = $item;
 
@@ -361,11 +379,16 @@ switch ($action) {
 
         foreach ($names as $i => $orig) {
             if (!is_uploaded_file($tmps[$i])) continue;
-            if ($sizes[$i] > MAX_UPLOAD_BYTES) json_error('Файлът е твърде голям (макс. 60MB).');
+            $maxBytes = max_upload_bytes_for($kind);
+            if ($sizes[$i] > $maxBytes) {
+                $maxMb = (int)round($maxBytes / (1024 * 1024));
+                json_error('Файлът е твърде голям (макс. ' . $maxMb . 'MB).');
+            }
             $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
             if (!in_array($ext, $allowed, true)) json_error('Недопустим формат: ' . htmlspecialchars($orig));
 
             if ($subdir && $kind === 'video') {
+                clear_product_folder_videos($subdir);
                 $fname = '1.' . $ext;
             } elseif ($subdir) {
                 $fname = $useBunny

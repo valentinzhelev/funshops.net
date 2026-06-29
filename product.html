@@ -168,7 +168,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // видео
         if (p.video) {
             document.getElementById("pdpVideo").style.display = "block";
-            document.getElementById("videoSrc").src = S.asset(p.video);
+            const vSrc = S.asset(p.video) + "?v=" + encodeURIComponent(String(p.id));
+            const vEl = document.getElementById("videoSrc");
+            vEl.src = vSrc;
+            vEl.type = S.videoMime(p.video);
             document.getElementById("videoEl").load();
         }
 

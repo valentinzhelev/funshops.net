@@ -39,8 +39,9 @@ define('IMAGES_DIR', ROOT_DIR . '/images');
 define('VIDEOS_DIR', ROOT_DIR . '/videos');
 
 const ALLOWED_IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
-const ALLOWED_VIDEO_EXT = ['mp4', 'webm', 'mov'];
-const MAX_UPLOAD_BYTES   = 60 * 1024 * 1024;
+const ALLOWED_VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'avi', 'mkv'];
+const MAX_UPLOAD_BYTES       = 60 * 1024 * 1024;  // снимки — 60 MB
+const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // видео — 100 MB
 
 /* Bunny — оставете празно за локални снимки на jump.bg */
 const BUNNY_STORAGE_ZONE   = '';

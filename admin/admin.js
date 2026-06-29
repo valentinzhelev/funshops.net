@@ -445,10 +445,10 @@
             </div>
             <div class="card section-gap"><div class="card-head"><h2>Видео</h2></div>
               <div class="card-body">
-                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта.</p>
+                <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта. Формати: mp4, webm, mov, m4v, avi, mkv (препоръчително mp4). Макс. 100 MB.</p>
                 <div id="vidBox"></div>
                 <div class="row-gap" style="margin-top:12px">
-                  <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео (mp4)</span><input type="file" id="vidInput" accept="video/*" hidden></div>
+                  <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео</span><input type="file" id="vidInput" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.webm,.mov,.m4v,.avi,.mkv" hidden></div>
                   <button type="button" class="btn btn-ghost btn-sm" id="vidRemove" ${video ? "" : "hidden"}>Премахни видеото</button>
                 </div>
               </div>
@@ -480,12 +480,13 @@
 
         const renderVideo = () => {
             if (video) {
-                vidBox.innerHTML = `<video class="vid-preview" controls preload="metadata" src="${asset(video)}"></video><p class="hint">${esc(video)}</p>`;
+                const bust = asset(video) + "?v=" + Date.now();
+                vidBox.innerHTML = `<video class="vid-preview" controls preload="metadata" src="${bust}"></video><p class="hint">${esc(video)}</p>`;
                 vidLabel.textContent = "Смени видеото";
                 vidRemove.hidden = false;
             } else {
                 vidBox.innerHTML = `<p class="hint">Няма качено видео.</p>`;
-                vidLabel.textContent = "Качи видео (mp4)";
+                vidLabel.textContent = "Качи видео";
                 vidRemove.hidden = true;
             }
         };
