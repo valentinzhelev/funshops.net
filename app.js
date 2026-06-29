@@ -29,6 +29,12 @@
         const base = typeof window.SITE_ASSET_BASE === "string" ? window.SITE_ASSET_BASE : ASSET_BASE;
         return base + String(p).replace(/^\//, "").replace(/\\\//g, "/");
     }
+    /** Видео винаги от същия сървър — качва се локално, не през CDN. */
+    function videoAsset(p) {
+        if (!p) return "";
+        if (/^https?:/i.test(p)) return p;
+        return String(p).replace(/^\//, "").replace(/\\/g, "/");
+    }
     function videoMime(path) {
         const ext = String(path || "").split(".").pop().toLowerCase();
         const map = {
@@ -660,7 +666,7 @@
 
     /* ---------------------- Публичен API ---------------------- */
     window.Shop = {
-        asset, videoMime, t, money, LANG, I, RES_TTL_MIN,
+        asset, videoAsset, videoMime, t, money, LANG, I, RES_TTL_MIN,
         getCart, getList, getSessionId,
         fetchReservations, isReservedByOther, isReservedByMe, isProductBlocked, isInCart, isCatalogHidden,
         addToCart, removeFromCart, updateBadge, syncCartReservations,
