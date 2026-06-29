@@ -4,6 +4,11 @@ require_once __DIR__ . '/lib.php';
 admin_require(false);
 ensure_data_files();
 $csrf = csrf_token();
+$assetVer = max(
+    (int)@filemtime(__DIR__ . '/admin.js'),
+    (int)@filemtime(__DIR__ . '/admin.css'),
+    (int)@filemtime(__DIR__ . '/content-schema.js')
+);
 ?>
 <!DOCTYPE html>
 <html lang="bg">
@@ -15,7 +20,7 @@ $csrf = csrf_token();
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Yeseva+One&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="admin.css?v=<?= $assetVer ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -70,7 +75,7 @@ $csrf = csrf_token();
 
 <script src="../config.js"></script>
 <script>window.CSRF = <?= json_encode($csrf) ?>;</script>
-<script src="content-schema.js"></script>
-<script src="admin.js"></script>
+<script src="content-schema.js?v=<?= $assetVer ?>"></script>
+<script src="admin.js?v=<?= $assetVer ?>"></script>
 </body>
 </html>
