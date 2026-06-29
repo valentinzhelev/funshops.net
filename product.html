@@ -92,20 +92,20 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("t2").insertAdjacentHTML("afterbegin", S.I.leaf);
     document.getElementById("t3").insertAdjacentHTML("afterbegin", S.I.shield);
 
-    S.fetchProducts().then(async products => {
+    S.fetchProducts(true).then(async products => {
         await S.fetchReservations();
         const p = matchProduct(products) || products[0];
         if (!p) return;
         render(p, products);
     });
     document.addEventListener("reservations:changed", () => {
-        S.fetchReservations(true).then(() => S.fetchProducts().then(products => {
+        S.fetchReservations(true).then(() => S.fetchProducts(true).then(products => {
             const p = matchProduct(products);
             if (p) render(p, products);
         }));
     });
     document.addEventListener("cart:changed", () => {
-        S.fetchProducts().then(products => {
+        S.fetchProducts(true).then(products => {
             const p = matchProduct(products);
             if (p) render(p, products);
         });
@@ -175,8 +175,11 @@ document.addEventListener("DOMContentLoaded", () => {
         videoErr.hidden = true;
         if (p.video) {
             videoWrap.style.display = "block";
-            const vSrc = (S.videoAsset || S.asset)(p.video, p.video_ts || p.id);
-            videoEl.innerHTML = "";
+            const bust = p.video_ts || p.id;
+            const vSrc = (S.videoAsset || S.asset)(p.video, bust);
+            videoEl.pause();
+            videoEl.removeAttribute("src");
+            videoEl.load();
             videoEl.src = vSrc;
             videoEl.onerror = () => { videoErr.hidden = false; };
             videoEl.onloadeddata = () => { videoErr.hidden = true; };

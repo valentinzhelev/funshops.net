@@ -109,6 +109,16 @@ switch ($action) {
         ];
         if ($item['name'] === '') json_error('Името е задължително.');
 
+        if (!empty($item['video'])) {
+            $full = resolve_image_path($item['video']);
+            if ($full && is_file($full)) {
+                $mtime = (int)filemtime($full);
+                $incoming = (int)($in['video_ts'] ?? 0);
+                $item['video_ts'] = max($mtime, $incoming, time());
+            } elseif (empty($item['video_ts'])) {
+                $item['video_ts'] = time();
+            }
+        }
         $oldVideo = null;
         foreach ($products as $p) {
             if (product_ids_match($p['id'] ?? 0, $item['id'])) {

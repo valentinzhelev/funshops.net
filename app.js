@@ -480,7 +480,8 @@
 
     /* ---------------------- Зареждане на продукти ---------------------- */
     let productsPromise = null;
-    function fetchProducts() {
+    function fetchProducts(force) {
+        if (force) productsPromise = null;
         if (productsPromise) return productsPromise;
         productsPromise = fetch("products.php?nocache=" + Date.now())
             .then(r => r.ok ? r.json() : fetch("products.json?nocache=" + Date.now()).then(r2 => r2.json()))

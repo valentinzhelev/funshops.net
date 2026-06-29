@@ -268,7 +268,9 @@ function stream_video_file($fullPath, $mime) {
     $mtime = (int)@filemtime($fullPath);
     header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');
     header('ETag: W/"' . $mtime . '-' . $size . '"');
-    header('Cache-Control: public, max-age=3600, must-revalidate');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('X-LiteSpeed-Cache-Control: no-cache');
 
     $fh = fopen($fullPath, 'rb');
     if (!$fh) {
