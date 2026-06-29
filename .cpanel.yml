@@ -9,6 +9,4 @@ deployment:
     - /bin/cp -f ./config.production.js $DEPLOYPATH/config.js
     - test -f ./deploy/images.htaccess && /bin/cp -f ./deploy/images.htaccess $DEPLOYPATH/images/.htaccess || true
     - /bin/chmod 755 $DEPLOYPATH
-    - /bin/find $DEPLOYPATH -type d -exec chmod 755 {} \;
-    - /bin/find $DEPLOYPATH -type f -exec chmod 644 {} \;
     - /bin/chmod 775 $DEPLOYPATH/admin/data
