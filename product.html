@@ -48,7 +48,7 @@
                 <div class="pdp-desc" id="pdpDesc"></div>
                 <div class="pdp-tags" id="pdpTags"></div>
                 <div class="pdp-video" id="pdpVideo" style="display:none">
-                    <video controls preload="metadata" playsinline id="videoEl"></video>
+                    <video controls preload="auto" playsinline id="videoEl"></video>
                     <p class="hint" id="videoErr" hidden>Неуспешно зареждане на видеото.</p>
                 </div>
             </div>
@@ -75,7 +75,7 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=20260630"></script>
+<script src="app.js?v=20260721"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const S = window.Shop;
@@ -91,6 +91,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("t1").insertAdjacentHTML("afterbegin", S.I.hand);
     document.getElementById("t2").insertAdjacentHTML("afterbegin", S.I.leaf);
     document.getElementById("t3").insertAdjacentHTML("afterbegin", S.I.shield);
+    document.getElementById("mainImgWrap").addEventListener("click", () => openLightbox(currentMain));
+
+    let staticReady = false;
+
+    function productTitle(p) {
+        return /^\d+$/.test(String(p.name).trim()) ? "Бутилка № " + p.name : p.name;
+    }
 
     S.fetchProducts(true).then(async products => {
         await S.fetchReservations();
@@ -101,18 +108,24 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("reservations:changed", () => {
         S.fetchReservations(true).then(() => S.fetchProducts(true).then(products => {
             const p = matchProduct(products);
-            if (p) render(p, products);
+            if (p) renderStatus(p);
         }));
     });
     document.addEventListener("cart:changed", () => {
         S.fetchProducts(true).then(products => {
             const p = matchProduct(products);
-            if (p) render(p, products);
+            if (p) renderStatus(p);
         });
     });
 
     function render(p, products) {
-        const titleTxt = /^\d+$/.test(String(p.name).trim()) ? "Бутилка № " + p.name : p.name;
+        if (!staticReady) renderStatic(p, products);
+        renderStatus(p);
+    }
+
+    function renderStatic(p, products) {
+        staticReady = true;
+        const titleTxt = productTitle(p);
         document.getElementById("metaTitle").textContent = titleTxt + " | Моят Забавен Магазин";
         document.getElementById("bcName").textContent = titleTxt;
         document.getElementById("pdpCat").textContent = p.category;
@@ -121,78 +134,65 @@ document.addEventListener("DOMContentLoaded", () => {
         updateMeta(p, titleTxt);
 
         images = (p.images || []).filter(s => !String(s).endsWith(".mp4"));
-        const mainImg = document.getElementById("mainImg");
-        mainImg.src = S.asset(images[0] || "");
-        mainImg.alt = p.name;
+        document.getElementById("mainImg").src = S.asset(images[0] || "");
+        document.getElementById("mainImg").alt = p.name;
 
         const thumbs = document.getElementById("thumbs");
         thumbs.innerHTML = images.map((src, i) =>
             `<div class="thumb ${i === 0 ? "active" : ""}" data-i="${i}"><img src="${S.asset(src)}" alt="${p.name} ${i+1}" loading="lazy" decoding="async"></div>`).join("");
         thumbs.querySelectorAll(".thumb").forEach(th => th.addEventListener("click", () => setMain(Number(th.dataset.i))));
-        document.getElementById("mainImgWrap").addEventListener("click", () => openLightbox(currentMain));
 
-        // статус + цена + бутони
+        document.getElementById("pdpTags").innerHTML = (p.tags || []).map(tg => `<span class="tag">#${tg}</span>`).join("");
+
+        const videoWrap = document.getElementById("pdpVideo");
+        const videoEl = document.getElementById("videoEl");
+        const videoErr = document.getElementById("videoErr");
+        if (p.video) {
+            videoWrap.style.display = "block";
+            videoEl.onerror = () => { videoErr.hidden = false; };
+            videoEl.onloadedmetadata = () => { videoErr.hidden = true; };
+            videoEl.src = (S.videoAsset || S.asset)(p.video, p.video_ts || p.id);
+            videoEl.load();
+        } else {
+            videoWrap.style.display = "none";
+        }
+
+        renderRelated(p, products);
+    }
+
+    function renderStatus(p) {
+        updateMeta(p, productTitle(p));
         const inCart = S.isInCart(p.id);
         const blocked = !p.available || S.isProductBlocked(p.id);
         const priceEl = document.getElementById("pdpPrice");
         const actions = document.getElementById("pdpActions");
         const statusEl = document.getElementById("pdpStatus");
+        statusEl.innerHTML = "";
 
         if (blocked) {
             priceEl.style.display = "none";
             statusEl.innerHTML = `<div class="pdp-status">${!p.available ? "Този продукт вече е продаден." : "Този продукт е резервиран от друг клиент."}</div>`;
             actions.innerHTML = `<a href="products.html" class="btn btn-ghost">← Към продуктите</a>`;
         } else if (inCart) {
+            priceEl.style.display = "";
             priceEl.innerHTML = `${p.price} <small>€</small>`;
             statusEl.innerHTML = `<div class="pdp-status ok">Резервирана за вас — в количката (${S.RES_TTL_MIN} мин.)</div>`;
             actions.innerHTML = `
                 <a href="cart.html" class="btn btn-green">Към количката →</a>
                 <a href="products.html" class="btn btn-ghost">← Назад</a>`;
         } else {
+            priceEl.style.display = "";
             priceEl.innerHTML = `${p.price} <small>€</small>`;
             actions.innerHTML = `
                 <button class="btn btn-amber" id="addBtn">Добави в количката</button>
                 <a href="products.html" class="btn btn-ghost">← Назад</a>`;
             document.getElementById("addBtn").addEventListener("click", async () => {
-                if (await S.addToCart(p)) renderStatusAfterAdd();
+                if (await S.addToCart(p)) {
+                    actions.innerHTML = `<a href="cart.html" class="btn btn-green">Към количката →</a>
+                        <a href="products.html" class="btn btn-ghost">Продължи пазaruването</a>`;
+                }
             });
         }
-
-        function renderStatusAfterAdd() {
-            actions.innerHTML = `<a href="cart.html" class="btn btn-green">Към количката →</a>
-                <a href="products.html" class="btn btn-ghost">Продължи пазаруването</a>`;
-        }
-
-        // тагове
-        const tags = p.tags || [];
-        document.getElementById("pdpTags").innerHTML = tags.map(tg => `<span class="tag">#${tg}</span>`).join("");
-
-        // видео
-        const videoWrap = document.getElementById("pdpVideo");
-        const videoEl = document.getElementById("videoEl");
-        const videoErr = document.getElementById("videoErr");
-        videoEl.onerror = null;
-        videoErr.hidden = true;
-        if (p.video) {
-            videoWrap.style.display = "block";
-            const bust = p.video_ts || p.id;
-            const vSrc = (S.videoAsset || S.asset)(p.video, bust);
-            videoEl.pause();
-            videoEl.removeAttribute("src");
-            videoEl.load();
-            videoEl.src = vSrc;
-            videoEl.onerror = () => { videoErr.hidden = false; };
-            videoEl.onloadeddata = () => { videoErr.hidden = true; };
-            videoEl.load();
-        } else {
-            videoWrap.style.display = "none";
-            videoEl.removeAttribute("src");
-            videoEl.load();
-            videoEl.onerror = null;
-            videoEl.onloadeddata = null;
-        }
-
-        renderRelated(p, products);
     }
 
     function updateMeta(p, titleTxt) {

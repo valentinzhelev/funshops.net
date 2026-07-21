@@ -81,7 +81,17 @@ if (!empty($settings['email_notifications'])) {
     if (!empty($order['email']) && filter_var($in['email'] ?? '', FILTER_VALIDATE_EMAIL)) {
         $headers .= "Reply-To: " . ($in['email']) . "\r\n";
     }
-    @mail(ORDER_EMAIL_TO, $subject, $body, $headers);
+    $envelope = ORDER_EMAIL_FROM;
+    $recipients = [ORDER_EMAIL_TO];
+    if (defined('ORDER_EMAIL_COPY') && ORDER_EMAIL_COPY !== '' && ORDER_EMAIL_COPY !== ORDER_EMAIL_TO) {
+        $recipients[] = ORDER_EMAIL_COPY;
+    }
+    foreach (array_unique($recipients) as $to) {
+        $sent = @mail($to, $subject, $body, $headers, '-f' . $envelope);
+        if (!$sent) {
+            error_log('Order email failed: to=' . $to . ' from=' . ORDER_EMAIL_FROM);
+        }
+    }
 }
 
 notify_new_order($order);

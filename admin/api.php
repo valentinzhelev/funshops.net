@@ -388,8 +388,11 @@ switch ($action) {
         $names = is_array($files['name']) ? $files['name'] : [$files['name']];
         $tmps  = is_array($files['tmp_name']) ? $files['tmp_name'] : [$files['tmp_name']];
         $sizes = is_array($files['size']) ? $files['size'] : [$files['size']];
+        $errs  = is_array($files['error']) ? $files['error'] : [$files['error']];
 
         foreach ($names as $i => $orig) {
+            $err = (int)($errs[$i] ?? UPLOAD_ERR_OK);
+            if ($err !== UPLOAD_ERR_OK) json_error(upload_error_message($err));
             if (!is_uploaded_file($tmps[$i])) continue;
             $maxBytes = max_upload_bytes_for($kind);
             if ($sizes[$i] > $maxBytes) {
@@ -419,7 +422,19 @@ switch ($action) {
             $ok = $useBunny
                 ? bunny_upload($relPath, $tmps[$i])
                 : move_uploaded_file($tmps[$i], $destFile);
-            if ($ok) $saved[] = $relPath;
+            if ($ok) {
+                if (!$useBunny && is_file($destFile)) {
+                    $disk = (int)filesize($destFile);
+                    $expected = (int)$sizes[$i];
+                    if ($disk <= 0 || ($expected > 0 && $disk < (int)($expected * 0.95))) {
+                        @unlink($destFile);
+                        json_error($kind === 'video'
+                            ? 'Видеото не е качено напълно (обрязано). Проверете upload_max_filesize в PHP.'
+                            : 'Файлът не е качен напълно.');
+                    }
+                }
+                $saved[] = $relPath;
+            }
         }
         if (!$saved) {
             if ($useBunny) json_error('Качването в CDN неуспешно — проверете BUNNY_STORAGE_KEY.');

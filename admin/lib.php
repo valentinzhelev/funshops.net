@@ -212,6 +212,25 @@ function max_upload_bytes_for($kind) {
     return defined('MAX_UPLOAD_BYTES') ? (int)MAX_UPLOAD_BYTES : 60 * 1024 * 1024;
 }
 
+/** Четимо съобщение за PHP upload error code. */
+function upload_error_message($code) {
+    switch ((int)$code) {
+        case UPLOAD_ERR_INI_SIZE:
+        case UPLOAD_ERR_FORM_SIZE:
+            return 'Файлът е твърде голям — намалете видеото или увеличете upload_max_filesize на сървъра.';
+        case UPLOAD_ERR_PARTIAL:
+            return 'Качването е прекъснато — файлът е непълен. Опитайте отново.';
+        case UPLOAD_ERR_NO_FILE:
+            return 'Няма избран файл.';
+        case UPLOAD_ERR_NO_TMP_DIR:
+        case UPLOAD_ERR_CANT_WRITE:
+        case UPLOAD_ERR_EXTENSION:
+            return 'Грешка при качване на сървъра (код ' . (int)$code . ').';
+        default:
+            return 'Качването неуспешно.';
+    }
+}
+
 function video_mime_for_ext($ext) {
     $ext = strtolower((string)$ext);
     return $ext === 'webm' ? 'video/webm' : 'video/mp4';
@@ -267,6 +286,8 @@ function stream_video_file($fullPath, $mime) {
         @apache_setenv('no-gzip', '1');
     }
     @ini_set('zlib.output_compression', '0');
+    @set_time_limit(0);
+    @ini_set('max_execution_time', '0');
 
     http_response_code($httpStatus);
     header('Content-Type: ' . $mime);
@@ -296,6 +317,8 @@ function stream_video_file($fullPath, $mime) {
         echo $read;
         $remaining -= strlen($read);
         if (connection_aborted()) break;
+        if (ob_get_level()) @ob_flush();
+        @flush();
     }
     fclose($fh);
     exit;

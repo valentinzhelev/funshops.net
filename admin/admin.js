@@ -11,9 +11,8 @@
     const videoUrl = (path, bust) => {
         if (!path) return "";
         if (/^https?:/i.test(path)) return path;
-        const rel = String(path).replace(/^\//, "").replace(/\\/g, "/");
-        let url = ASSET_BASE + "video.php?f=" + encodeURIComponent(rel);
-        if (bust) url += "&v=" + encodeURIComponent(String(bust));
+        let url = asset(String(path).replace(/^\//, "").replace(/\\/g, "/"));
+        if (bust) url += (url.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(String(bust));
         return url;
     };
     /* ---------------------- Икони ---------------------- */
@@ -183,8 +182,8 @@
         const k = s.kpi, v = s.visits_kpi;
         root.innerHTML = `
           <div class="kpi-grid">
-            ${kpiCard("blue","users", v.today, "Посещения днес", `Тази седмица: ${v.week}`)}
-            ${kpiCard("amber","calendar", v.month, "Посещения (30 дни)", `За година: ${v.year}`)}
+            ${kpiCard("blue","users", v.today, "Уникални посетители днес", `Последните 7 дни: ${v.week}`)}
+            ${kpiCard("amber","calendar", v.month, "Уникални (30 дни)", `За година: ${v.year}`)}
             ${kpiCard("purple","bag", k.total, "Поръчки общо", `Очаквани: ${k.pending} · Изпълнени: ${k.fulfilled}`)}
             ${kpiCard("green","money", money(k.revenue_fulfilled), "Приход (изпълнени)", `Потенциален: ${money(k.revenue_all)}`)}
           </div>

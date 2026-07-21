@@ -4,11 +4,11 @@
    Копирайте на сървъра като admin/config.php (не се deploy-ва от Git)
    ============================================================= */
 
-const ADMIN_PASSWORD_HASH = '$2y$10$MCVWh3li/o4dY9IpW9Vu.uva0olWbxWLOSriEx84lqtb0h1Umc0cO';
-// По подразбиране: magazin2026 — СМЕНЕТЕ на production!
-// php -r "echo password_hash('НОВА_ПАРОЛА', PASSWORD_DEFAULT);"
+const ADMIN_PASSWORD_HASH = '$2y$10$ImtHUYStzqQTAkMbp7r2l.05ypey9Tj73DWZszwL/GWN8p65hZIZC';
+// Парола: Magazin2026!NV
 
 const ORDER_EMAIL_TO   = 'orders@funshops.net';
+const ORDER_EMAIL_COPY = 'nedko.velikov@abv.bg';
 const ORDER_EMAIL_FROM = 'orders@funshops.net';
 const SHOP_NAME        = 'Моят Забавен Магазин';
 

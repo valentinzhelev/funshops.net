@@ -29,13 +29,12 @@
         const base = typeof window.SITE_ASSET_BASE === "string" ? window.SITE_ASSET_BASE : ASSET_BASE;
         return base + String(p).replace(/^\//, "").replace(/\\\//g, "/");
     }
-    /** Видео през video.php — правилен MIME и Range за HTML5 плейъра. */
+    /** Видео — директен статичен URL (LiteSpeed Range); video.php остава резерв. */
     function videoAsset(p, cacheKey) {
         if (!p) return "";
         if (/^https?:/i.test(p)) return p;
-        const path = String(p).replace(/^\//, "").replace(/\\/g, "/");
-        let url = "video.php?f=" + encodeURIComponent(path);
-        if (cacheKey != null && cacheKey !== "") url += "&v=" + encodeURIComponent(String(cacheKey));
+        let url = asset(String(p).replace(/^\//, "").replace(/\\/g, "/"));
+        if (cacheKey != null && cacheKey !== "") url += (url.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(String(cacheKey));
         return url;
     }
     function videoMime(path) {
@@ -707,7 +706,7 @@
         fetchReservations().then(() => syncCartReservations()).catch(() => {});
         setInterval(() => {
             fetchReservations(true).then(() => document.dispatchEvent(new CustomEvent("reservations:changed")));
-        }, 15000);
+        }, 40000);
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible") {
                 fetchReservations(true).then(() => document.dispatchEvent(new CustomEvent("reservations:changed")));
