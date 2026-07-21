@@ -12,6 +12,12 @@ const ORDER_EMAIL_COPY = 'nedko.velikov@abv.bg';
 const ORDER_EMAIL_FROM = 'orders@funshops.net';
 const SHOP_NAME        = 'Моят Забавен Магазин';
 
+/* ABV SMTP — appssmtp.abv.bg:465, потребител orders@funshops.net + парола от ABV */
+const SMTP_HOST = 'appssmtp.abv.bg';
+const SMTP_PORT = 465;
+const SMTP_USER = 'orders@funshops.net';
+const SMTP_PASS = '';
+
 /* Резервация в количка (минути) */
 const RESERVATION_MINUTES = 30;
 

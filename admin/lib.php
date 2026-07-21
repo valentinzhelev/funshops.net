@@ -637,6 +637,177 @@ function set_products_availability(array $productIds, $available) {
     write_products($products);
 }
 
+/** SMTP през ABV „на твой домейн“ — appssmtp.abv.bg:465 */
+function smtp_enabled() {
+    return defined('SMTP_HOST') && SMTP_HOST !== ''
+        && defined('SMTP_USER') && SMTP_USER !== ''
+        && defined('SMTP_PASS') && SMTP_PASS !== '';
+}
+
+function smtp_read($socket) {
+    $data = '';
+    while ($line = @fgets($socket, 515)) {
+        $data .= $line;
+        if (strlen($line) >= 4 && $line[3] === ' ') break;
+    }
+    return $data;
+}
+
+function smtp_write($socket, $cmd) {
+    @fwrite($socket, $cmd . "\r\n");
+}
+
+function smtp_expect($resp, $codes) {
+    $codes = (array)$codes;
+    foreach ($codes as $code) {
+        if (strpos($resp, (string)$code) === 0) return true;
+    }
+    return false;
+}
+
+function smtp_send_mail(array $toList, $subject, $body, $replyTo = null) {
+    $host = SMTP_HOST;
+    $port = defined('SMTP_PORT') ? (int)SMTP_PORT : 465;
+    $user = SMTP_USER;
+    $pass = SMTP_PASS;
+    $from = defined('ORDER_EMAIL_FROM') && ORDER_EMAIL_FROM !== '' ? ORDER_EMAIL_FROM : $user;
+    $fromName = defined('SHOP_NAME') ? SHOP_NAME : '';
+
+    $toList = array_values(array_unique(array_filter(array_map('trim', $toList))));
+    if (!$toList) return false;
+
+    $socket = @stream_socket_client(
+        'ssl://' . $host . ':' . $port,
+        $errno,
+        $errstr,
+        20,
+        STREAM_CLIENT_CONNECT,
+        stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true]])
+    );
+    if (!$socket) {
+        error_log('SMTP connect failed: ' . $errstr . ' (' . $errno . ')');
+        return false;
+    }
+
+    stream_set_timeout($socket, 20);
+    $resp = smtp_read($socket);
+    if (!smtp_expect($resp, '220')) {
+        error_log('SMTP banner failed: ' . trim($resp));
+        fclose($socket);
+        return false;
+    }
+
+    smtp_write($socket, 'EHLO funshops.net');
+    $resp = smtp_read($socket);
+    if (!smtp_expect($resp, '250')) {
+        error_log('SMTP EHLO failed: ' . trim($resp));
+        fclose($socket);
+        return false;
+    }
+
+    smtp_write($socket, 'AUTH LOGIN');
+    $resp = smtp_read($socket);
+    if (!smtp_expect($resp, '334')) {
+        error_log('SMTP AUTH start failed: ' . trim($resp));
+        fclose($socket);
+        return false;
+    }
+
+    smtp_write($socket, base64_encode($user));
+    $resp = smtp_read($socket);
+    if (!smtp_expect($resp, '334')) {
+        error_log('SMTP user rejected: ' . trim($resp));
+        fclose($socket);
+        return false;
+    }
+
+    smtp_write($socket, base64_encode($pass));
+    $resp = smtp_read($socket);
+    if (!smtp_expect($resp, '235')) {
+        error_log('SMTP password rejected for ' . $user);
+        fclose($socket);
+        return false;
+    }
+
+    smtp_write($socket, 'MAIL FROM:<' . $from . '>');
+    $resp = smtp_read($socket);
+    if (!smtp_expect($resp, '250')) {
+        error_log('SMTP MAIL FROM failed: ' . trim($resp));
+        fclose($socket);
+        return false;
+    }
+
+    foreach ($toList as $to) {
+        smtp_write($socket, 'RCPT TO:<' . $to . '>');
+        $resp = smtp_read($socket);
+        if (!smtp_expect($resp, '250')) {
+            error_log('SMTP RCPT TO failed for ' . $to . ': ' . trim($resp));
+            fclose($socket);
+            return false;
+        }
+    }
+
+    smtp_write($socket, 'DATA');
+    $resp = smtp_read($socket);
+    if (!smtp_expect($resp, '354')) {
+        error_log('SMTP DATA failed: ' . trim($resp));
+        fclose($socket);
+        return false;
+    }
+
+    $encodedName = $fromName !== '' ? '=?UTF-8?B?' . base64_encode($fromName) . '?=' : '';
+    $fromHeader = $encodedName !== '' ? $encodedName . ' <' . $from . '>' : $from;
+    $headers = "From: {$fromHeader}\r\n";
+    $headers .= 'To: ' . implode(', ', $toList) . "\r\n";
+    $headers .= "Subject: {$subject}\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $headers .= "Content-Transfer-Encoding: 8bit\r\n";
+    if ($replyTo) $headers .= 'Reply-To: ' . $replyTo . "\r\n";
+    $headers .= 'Date: ' . date('r') . "\r\n";
+
+    $message = $headers . "\r\n" . preg_replace('/^\./m', '..', str_replace("\r", '', $body));
+    @fwrite($socket, $message . "\r\n.\r\n");
+    $resp = smtp_read($socket);
+    smtp_write($socket, 'QUIT');
+    fclose($socket);
+
+    if (!smtp_expect($resp, '250')) {
+        error_log('SMTP send failed: ' . trim($resp));
+        return false;
+    }
+    return true;
+}
+
+function order_email_recipients() {
+    $list = [ORDER_EMAIL_TO];
+    if (defined('ORDER_EMAIL_COPY') && ORDER_EMAIL_COPY !== '' && ORDER_EMAIL_COPY !== ORDER_EMAIL_TO) {
+        $list[] = ORDER_EMAIL_COPY;
+    }
+    return array_values(array_unique(array_filter($list)));
+}
+
+/** Изпраща имейл за поръчка — SMTP (ABV) или резервно PHP mail(). */
+function send_shop_email(array $toList, $subject, $body, $replyTo = null) {
+    if (smtp_enabled()) {
+        return smtp_send_mail($toList, $subject, $body, $replyTo);
+    }
+
+    $headers = 'From: ' . ORDER_EMAIL_FROM . "\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    if ($replyTo) $headers .= 'Reply-To: ' . $replyTo . "\r\n";
+
+    $ok = true;
+    foreach (array_unique($toList) as $to) {
+        $sent = @mail($to, $subject, $body, $headers, '-f' . ORDER_EMAIL_FROM);
+        if (!$sent) {
+            error_log('Order email failed (mail): to=' . $to);
+            $ok = false;
+        }
+    }
+    return $ok;
+}
+
 function send_push_notification($title, $message) {
     $title = trim((string)$title);
     $message = trim((string)$message);

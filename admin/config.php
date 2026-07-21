@@ -17,6 +17,12 @@ const ORDER_EMAIL_COPY = 'nedko.velikov@abv.bg'; // резервно копие
 const ORDER_EMAIL_FROM = 'orders@funshops.net';
 const SHOP_NAME        = 'Моят Забавен Магазин';
 
+/* ABV SMTP — задължително за orders@funshops.net (PHP mail() не работи от jump.bg) */
+const SMTP_HOST = 'appssmtp.abv.bg';
+const SMTP_PORT = 465;
+const SMTP_USER = 'orders@funshops.net';
+const SMTP_PASS = 'Magazin2026!'; // парола на orders@funshops.net в ABV — попълнете на сървъра!
+
 /* --- Пътища --- */
 define('ADMIN_DIR', __DIR__);
 define('ROOT_DIR',  dirname(__DIR__));

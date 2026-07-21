@@ -355,6 +355,18 @@ switch ($action) {
         json_response(['ok' => true, 'settings' => $cur]);
     }
 
+    case 'test_order_email': {
+        if ($method !== 'POST') json_error('POST only');
+        if (!smtp_enabled()) {
+            json_error('SMTP не е настроен — попълнете SMTP_PASS в admin/config.php (парола на orders@funshops.net).');
+        }
+        $subject = '=?UTF-8?B?' . base64_encode('Тест — ' . SHOP_NAME) . '?=';
+        $body = "Това е тестов имейл от админ панела.\n\nАко го виждате, поръчките ще пристигат нормално.\n\n" . date('d.m.Y H:i:s');
+        $ok = send_shop_email(order_email_recipients(), $subject, $body);
+        if (!$ok) json_error('Изпращането неуспешно — проверете SMTP_PASS и ABV настройките.');
+        json_response(['ok' => true, 'to' => order_email_recipients()]);
+    }
+
     case 'clear_cache': {
         if ($method !== 'POST') json_error('POST only');
         // Просто връщаме нов "версионен" печат; фронтендът ползва ?nocache=time()

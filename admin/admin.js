@@ -838,6 +838,11 @@
             <div class="card-body">
               <div class="field"><label class="switch"><input type="checkbox" id="setEmail" ${s.email_notifications ? "checked" : ""}><span class="track"></span> Имейл известия за нови поръчки</label></div>
               <div class="hint" style="margin-top:14px; line-height:1.5">
+                Поръчките се изпращат на <strong>orders@funshops.net</strong> през ABV SMTP.
+                В <code>admin/config.php</code> попълнете <strong>SMTP_PASS</strong> (паролата на orders@funshops.net).
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" id="testOrderEmail" style="margin-top:12px">Изпрати тестов имейл</button>
+              <div class="hint" style="margin-top:14px; line-height:1.5">
                 <strong>Известия на телефон:</strong> в <code>admin/config.php</code> попълнете
                 <strong>Telegram</strong> (бот + chat id) или <strong>ntfy.sh</strong> topic.
               </div>
@@ -880,6 +885,14 @@
                 email_notifications: document.getElementById("setEmail").checked
             }});
             toast("Настройките са запазени.");
+        });
+        document.getElementById("testOrderEmail")?.addEventListener("click", async () => {
+            try {
+                const r = await api("test_order_email", { body: {} });
+                toast("Тестовият имейл е изпратен до: " + (r.to || []).join(", "), "ok");
+            } catch (e) {
+                toast(e.message || "Грешка при тестов имейл.", "err");
+            }
         });
         document.getElementById("clearCache").addEventListener("click", async () => { await api("clear_cache", { body: {} }); toast("Кешът е изчистен."); });
         document.getElementById("clearReservations")?.addEventListener("click", async () => {

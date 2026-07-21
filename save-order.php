@@ -76,21 +76,13 @@ if (!empty($settings['email_notifications'])) {
         "Общо: {$order['total']} €\n" .
         "Дата: {$order['date']}\n";
     $subject = '=?UTF-8?B?' . base64_encode('Нова поръчка — ' . SHOP_NAME) . '?=';
-    $headers = "From: " . ORDER_EMAIL_FROM . "\r\n" .
-               "Content-Type: text/plain; charset=UTF-8\r\n";
+    $replyTo = null;
     if (!empty($order['email']) && filter_var($in['email'] ?? '', FILTER_VALIDATE_EMAIL)) {
-        $headers .= "Reply-To: " . ($in['email']) . "\r\n";
+        $replyTo = $in['email'];
     }
-    $envelope = ORDER_EMAIL_FROM;
-    $recipients = [ORDER_EMAIL_TO];
-    if (defined('ORDER_EMAIL_COPY') && ORDER_EMAIL_COPY !== '' && ORDER_EMAIL_COPY !== ORDER_EMAIL_TO) {
-        $recipients[] = ORDER_EMAIL_COPY;
-    }
-    foreach (array_unique($recipients) as $to) {
-        $sent = @mail($to, $subject, $body, $headers, '-f' . $envelope);
-        if (!$sent) {
-            error_log('Order email failed: to=' . $to . ' from=' . ORDER_EMAIL_FROM);
-        }
+    $sent = send_shop_email(order_email_recipients(), $subject, $body, $replyTo);
+    if (!$sent) {
+        error_log('Order notification email failed for order #' . $order['id']);
     }
 }
 
