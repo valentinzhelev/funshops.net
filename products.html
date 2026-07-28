@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function card(p, i) {
-        const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
+        const img = (p.images || []).find(s => !S.isVideoPath(s)) || "";
         const href = S.productHref(p.id);
         const title = S.productTitle(p.name);
         let foot;

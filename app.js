@@ -38,7 +38,12 @@
         return url;
     }
     function videoMime(path) {
-        return String(path || "").toLowerCase().endsWith(".webm") ? "video/webm" : "video/mp4";
+        const ext = String(path || "").toLowerCase().split(".").pop();
+        const map = { webm: "video/webm", mov: "video/quicktime", m4v: "video/mp4", avi: "video/x-msvideo", mkv: "video/x-matroska", "3gp": "video/3gpp" };
+        return map[ext] || "video/mp4";
+    }
+    function isVideoPath(p) {
+        return /\.(mp4|m4v|mov|webm|avi|mkv|3gp)$/i.test(String(p || ""));
     }
     function t(bg, en) { return LANG === "bg" ? bg : en; }
     function money(n) { return Number(n).toFixed(2) + " €"; }
@@ -309,7 +314,7 @@
             toast(hold.error || t("Неуспешна резервация.", "Reservation failed."), "warn");
             return false;
         }
-        const firstImage = (product.images || []).find(s => !String(s).endsWith(".mp4")) || (product.images || [])[0];
+        const firstImage = (product.images || []).find(s => !isVideoPath(s)) || (product.images || [])[0];
         cart.push({ id: product.id, title: product.name, price: parseFloat(product.price), image: firstImage });
         setJSON("cart", cart);
         await fetchReservations(true);
@@ -671,7 +676,7 @@
 
     /* ---------------------- Публичен API ---------------------- */
     window.Shop = {
-        asset, videoAsset, videoMime, t, money, LANG, I, RES_TTL_MIN,
+        asset, videoAsset, videoMime, isVideoPath, t, money, LANG, I, RES_TTL_MIN,
         getCart, getList, getSessionId,
         fetchReservations, isReservedByOther, isReservedByMe, isProductBlocked, isInCart, isCatalogHidden, productCatalogStatus,
         addToCart, removeFromCart, updateBadge, syncCartReservations,

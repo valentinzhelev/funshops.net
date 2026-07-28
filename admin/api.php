@@ -408,12 +408,16 @@ switch ($action) {
             if (!is_uploaded_file($tmps[$i])) continue;
             $maxBytes = max_upload_bytes_for($kind);
             if ($sizes[$i] > $maxBytes) {
-                if ($kind === 'video') json_error('Файлът е твърде голям за качване на сървъра.');
                 $maxMb = (int)round($maxBytes / (1024 * 1024));
-                json_error('Файлът е твърде голям (макс. ' . $maxMb . 'MB).');
+                json_error($kind === 'video'
+                    ? 'Видеото е над ' . $maxMb . ' MB.'
+                    : 'Файлът е твърде голям (макс. ' . $maxMb . 'MB).');
             }
             $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
-            if (!in_array($ext, $allowed, true)) json_error('Недопустим формат: ' . htmlspecialchars($orig));
+            if ($kind === 'video' && $ext === '3gpp') $ext = '3gp';
+            if (!in_array($ext, $allowed, true)) {
+                json_error('Недопустим формат: ' . htmlspecialchars($orig) . '. Разрешени: ' . implode(', ', $allowed));
+            }
 
             if ($subdir && $kind === 'video') {
                 if (!is_dir($destDir) && !@mkdir($destDir, 0775, true)) {
@@ -435,15 +439,9 @@ switch ($action) {
                 ? bunny_upload($relPath, $tmps[$i])
                 : move_uploaded_file($tmps[$i], $destFile);
             if ($ok) {
-                if (!$useBunny && is_file($destFile)) {
-                    $disk = (int)filesize($destFile);
-                    $expected = (int)$sizes[$i];
-                    if ($disk <= 0 || ($expected > 0 && $disk < (int)($expected * 0.95))) {
-                        @unlink($destFile);
-                        json_error($kind === 'video'
-                            ? 'Видеото не е качено напълно (обрязано). Проверете upload_max_filesize в PHP.'
-                            : 'Файлът не е качен напълно.');
-                    }
+                if (!$useBunny && is_file($destFile) && (int)filesize($destFile) <= 0) {
+                    @unlink($destFile);
+                    json_error($kind === 'video' ? 'Видеото не е качено — празен файл.' : 'Файлът не е качен.');
                 }
                 $saved[] = $relPath;
             }

@@ -36,17 +36,26 @@
                     <div class="field"><label for="email">Имейл</label><input id="email" type="email" autocomplete="email" placeholder="ivan@example.com"><span class="field-err" data-for="email"></span></div>
 
                     <fieldset class="field full delivery-methods">
-                        <legend>Начин на доставка *</legend>
-                        <div class="radio-grid">
-                            <label class="radio-card"><input type="radio" name="delivery" value="Еконт – до офис" checked>
-                                <span class="rc-ic" data-ic="truck"></span><span class="rc-txt"><b>Еконт</b><small>до офис</small></span></label>
-                            <label class="radio-card"><input type="radio" name="delivery" value="Спиди – до офис">
-                                <span class="rc-ic" data-ic="truck"></span><span class="rc-txt"><b>Спиди</b><small>до офис</small></span></label>
-                            <label class="radio-card"><input type="radio" name="delivery" value="Куриер – до адрес">
-                                <span class="rc-ic" data-ic="pin"></span><span class="rc-txt"><b>До адрес</b><small>с куриер</small></span></label>
-                            <label class="radio-card"><input type="radio" name="delivery" value="Лично предаване – Стара Загора">
-                                <span class="rc-ic" data-ic="hand"></span><span class="rc-txt"><b>Лично</b><small>Стара Загора</small></span></label>
+                        <legend>Доставка *</legend>
+                        <div id="courierBlock">
+                            <p class="delivery-step">1. Изберете куриер</p>
+                            <div class="radio-grid">
+                                <label class="radio-card"><input type="radio" name="courier" value="Еконт" checked>
+                                    <span class="rc-ic" data-ic="truck"></span><span class="rc-txt"><b>Еконт</b></span></label>
+                                <label class="radio-card"><input type="radio" name="courier" value="Спиди">
+                                    <span class="rc-ic" data-ic="truck"></span><span class="rc-txt"><b>Спиди</b></span></label>
+                            </div>
+                            <p class="delivery-step">2. До офис или адрес</p>
+                            <div class="radio-grid">
+                                <label class="radio-card"><input type="radio" name="dest" value="офис" checked>
+                                    <span class="rc-ic" data-ic="truck"></span><span class="rc-txt"><b>До офис</b><small>на куриера</small></span></label>
+                                <label class="radio-card"><input type="radio" name="dest" value="адрес">
+                                    <span class="rc-ic" data-ic="pin"></span><span class="rc-txt"><b>До адрес</b><small>личен адрес</small></span></label>
+                            </div>
                         </div>
+                        <p class="delivery-or">или</p>
+                        <label class="radio-card delivery-pickup"><input type="radio" name="deliveryMode" value="pickup">
+                            <span class="rc-ic" data-ic="hand"></span><span class="rc-txt"><b>Лично предаване</b><small>Стара Загора</small></span></label>
                     </fieldset>
 
                     <div class="field" id="cityField"><label for="city">Град *</label><input id="city" type="text" autocomplete="address-level2" placeholder="Стара Загора"><span class="field-err" data-for="city"></span></div>
@@ -84,8 +93,38 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".rc-ic[data-ic]").forEach(el => { el.innerHTML = S.I[el.dataset.ic] || ""; });
 
     const $ = id => document.getElementById(id);
-    const delivery = () => document.querySelector('input[name="delivery"]:checked').value;
-    const isPickup = () => delivery().indexOf("Лично") === 0;
+    const isPickup = () => document.querySelector('input[name="deliveryMode"]:checked') !== null;
+    const delivery = () => {
+        if (isPickup()) return "Лично предаване – Стара Загора";
+        const courier = document.querySelector('input[name="courier"]:checked').value;
+        const dest = document.querySelector('input[name="dest"]:checked').value;
+        return courier + " – до " + dest;
+    };
+    const isToAddress = () => !isPickup() && document.querySelector('input[name="dest"]:checked').value === "адрес";
+
+    function selectCourierMode() {
+        document.querySelector('input[name="deliveryMode"][value="pickup"]')?.removeAttribute("checked");
+        const pickup = document.querySelector('input[name="deliveryMode"]');
+        if (pickup) pickup.checked = false;
+    }
+
+    function syncDeliveryFields() {
+        const pickup = isPickup();
+        $("courierBlock").style.display = pickup ? "none" : "";
+        document.querySelector(".delivery-or").style.display = pickup ? "none" : "";
+        $("cityField").style.display = pickup ? "none" : "";
+        $("addrField").style.display = pickup ? "none" : "";
+        if (!pickup) {
+            $("addrLabel").textContent = isToAddress() ? "Адрес за доставка *" : "Офис на куриера *";
+            $("address").placeholder = isToAddress() ? "ул. … № …" : "напр. Еконт – Идеален център";
+        }
+        updateSummary();
+    }
+
+    document.querySelectorAll('input[name="courier"], input[name="dest"]').forEach(r => {
+        r.addEventListener("change", () => { selectCourierMode(); syncDeliveryFields(); });
+    });
+    document.querySelector('input[name="deliveryMode"]')?.addEventListener("change", syncDeliveryFields);
 
     function loadOrder() {
         const cart = S.getCart();
@@ -118,16 +157,6 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="grand"><span>Общо</span><b>${S.money(total)}</b></div>
           <p class="ship-note">Доставката се заплаща при получаване (наложен платеж), освен при лично предаване.</p>`;
     }
-
-    // Превключване на полета според начина на доставка
-    function syncDeliveryFields() {
-        const pickup = isPickup();
-        $("cityField").style.display = pickup ? "none" : "";
-        $("addrField").style.display = pickup ? "none" : "";
-        $("addrLabel").textContent = delivery().indexOf("адрес") > -1 ? "Адрес за доставка *" : "Офис на куриера *";
-        updateSummary();
-    }
-    document.querySelectorAll('input[name="delivery"]').forEach(r => r.addEventListener("change", syncDeliveryFields));
 
     // Валидация
     function setErr(id, msg) {

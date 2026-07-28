@@ -8,6 +8,7 @@
         ? window.SITE_ASSET_BASE
         : "../";
     const asset = p => !p ? "" : (/^https?:/i.test(p) ? p : ASSET_BASE + String(p).replace(/^\//, ""));
+    const isVideoPath = p => /\.(mp4|m4v|mov|webm|avi|mkv|3gp)$/i.test(String(p || ""));
     const videoUrl = (path, bust) => {
         if (!path) return "";
         if (/^https?:/i.test(path)) return path;
@@ -341,13 +342,13 @@
                 emptyEl.hidden = false;
             }
             body.innerHTML = list.map(p => {
-                const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
+                const img = (p.images || []).find(s => !isVideoPath(s)) || "";
                 return `<tr>
                   <td><img class="tbl-img" src="${asset(img)}" alt="" loading="lazy" onerror="this.style.opacity=.3"></td>
                   <td><b>${esc(p.name)}</b><div class="tbl-id">${p.id}</div></td>
                   <td class="price-cell">${esc(p.price)} €</td>
                   <td>${esc(p.category || "—")}</td>
-                  <td>${(p.images || []).filter(s => !String(s).endsWith(".mp4")).length} бр.</td>
+                  <td>${(p.images || []).filter(s => !isVideoPath(s)).length} бр.</td>
                   <td>${p.available ? '<span class="badge ok">Наличен</span>' : '<span class="badge off">Изчерпан</span>'}</td>
                   <td><div class="cell-actions">
                     <button class="btn btn-ghost btn-sm" data-act="toggle" data-id="${p.id}">${p.available ? "Изчерпан" : "Върни"}</button>
@@ -411,7 +412,7 @@
         }
         const p = existing || { id: 0, name: "", price: "", category: CATS[0] || "", tags: [], description: "", images: [], video: null, available: true };
         const tags = Array.isArray(p.tags) ? p.tags.join(", ") : (p.tags || "");
-        let images = [...(p.images || [])].filter(s => !String(s).endsWith(".mp4"));
+        let images = [...(p.images || [])].filter(s => !isVideoPath(s));
         let video = p.video || "";
         let videoTs = p.video_ts || 0;
 
@@ -455,7 +456,7 @@
                 <p class="hint" style="margin-bottom:12px">По избор — показва се на страницата на продукта. Качете <b>MP4</b> (H.264 + AAC) — работи на всички устройства.</p>
                 <div id="vidBox"></div>
                 <div class="row-gap" style="margin-top:12px">
-                  <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео</span><input type="file" id="vidInput" accept="video/mp4,.mp4" hidden></div>
+                  <div class="uploader uploader-inline" id="vidDrop">${svg("film")} <span id="vidLabel">Качи видео</span><input type="file" id="vidInput" accept="video/*,.mp4,.m4v,.mov,.webm,.avi,.mkv,.3gp" hidden></div>
                   <button type="button" class="btn btn-ghost btn-sm" id="vidRemove" ${video ? "" : "hidden"}>Премахни видеото</button>
                 </div>
               </div>

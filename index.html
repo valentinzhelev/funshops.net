@@ -254,7 +254,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function card(p, i) {
-        const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
+        const img = (p.images || []).find(s => !S.isVideoPath(s)) || "";
         const href = S.productHref(p.id);
         return `
         <article class="product-card reveal" style="transition-delay:${(i % 4) * 70}ms">

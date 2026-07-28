@@ -606,6 +606,10 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; line-height
 .radio-card:has(input:checked) { border-color: var(--amber-deep); background: #fff; box-shadow: 0 4px 14px rgba(185,120,26,.16); }
 .radio-card:has(input:checked) .rc-ic { background: var(--amber); color: #3a2412; }
 .radio-card:has(input:focus-visible) { outline: 2px solid var(--amber); outline-offset: 2px; }
+.delivery-step { font-size: .82rem; font-weight: 700; color: var(--ink-soft); margin: 12px 0 8px; }
+.delivery-step:first-of-type { margin-top: 0; }
+.delivery-or { text-align: center; font-size: .82rem; color: var(--ink-soft); margin: 14px 0 10px; }
+.delivery-pickup { margin-top: 0; }
 
 .cart-summary .ship-free { color: var(--bg-green-deep); font-weight: 800; }
 .cart-summary .ship-note { font-size: .76rem; color: var(--ink-soft); margin-top: 4px; line-height: 1.45; }

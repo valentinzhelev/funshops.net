@@ -133,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("pdpDesc").textContent = p.description || "";
         updateMeta(p, titleTxt);
 
-        images = (p.images || []).filter(s => !String(s).endsWith(".mp4"));
+        images = (p.images || []).filter(s => !S.isVideoPath(s));
         document.getElementById("mainImg").src = S.asset(images[0] || "");
         document.getElementById("mainImg").alt = p.name;
 
@@ -151,6 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
             videoWrap.style.display = "block";
             videoEl.onerror = () => { videoErr.hidden = false; };
             videoEl.onloadedmetadata = () => { videoErr.hidden = true; };
+            videoEl.type = S.videoMime(p.video);
             videoEl.src = (S.videoAsset || S.asset)(p.video, p.video_ts || p.id);
             videoEl.load();
         } else {
@@ -197,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function updateMeta(p, titleTxt) {
         const url = "https://www.funshops.net/product.php?id=" + p.id;
-        const img = (p.images || []).find(s => !String(s).endsWith(".mp4")) || "";
+        const img = (p.images || []).find(s => !S.isVideoPath(s)) || "";
         const imgAbs = img ? S.asset(img) : "https://www.funshops.net/images/og-cover.png";
         const desc = (p.description || (titleTxt + " — ръчно изработена бутилка с български фолклорен мотив.")).slice(0, 200);
         const set = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
@@ -278,7 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
         rel = rel.slice(0, 4);
         const grid = document.getElementById("related");
         grid.innerHTML = rel.map((x, i) => {
-            const img = (x.images || []).find(s => !String(s).endsWith(".mp4")) || "";
+            const img = (x.images || []).find(s => !S.isVideoPath(s)) || "";
             const href = S.productHref(x.id);
             return `<article class="product-card reveal" style="transition-delay:${i*60}ms">
               <a href="${href}" class="pc-media"><img src="${S.asset(img)}" alt="${x.name}" loading="lazy" decoding="async">

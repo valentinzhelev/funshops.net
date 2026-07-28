@@ -233,7 +233,25 @@ function upload_error_message($code) {
 
 function video_mime_for_ext($ext) {
     $ext = strtolower((string)$ext);
-    return $ext === 'webm' ? 'video/webm' : 'video/mp4';
+    $map = [
+        'webm' => 'video/webm',
+        'mov'  => 'video/quicktime',
+        'm4v'  => 'video/mp4',
+        'avi'  => 'video/x-msvideo',
+        'mkv'  => 'video/x-matroska',
+        '3gp'  => 'video/3gpp',
+        '3gpp' => 'video/3gpp',
+    ];
+    return $map[$ext] ?? 'video/mp4';
+}
+
+function is_video_extension($ext) {
+    $ext = strtolower(preg_replace('/[^a-z0-9]/', '', (string)$ext));
+    return $ext !== '' && in_array($ext, ALLOWED_VIDEO_EXT, true);
+}
+
+function is_video_asset_path($path) {
+    return is_video_extension(pathinfo((string)$path, PATHINFO_EXTENSION));
 }
 
 /** Име за ново видео — уникален файл при всяко качване (избягва кеш на 1.mp4). */
@@ -337,8 +355,12 @@ function clear_product_folder_videos($subdir) {
     }
     $dir = IMAGES_DIR . '/' . $subdir;
     if (!is_dir($dir)) return;
-    foreach (glob($dir . '/*.mp4') ?: [] as $f) {
-        if (is_file($f)) @unlink($f);
+    foreach (glob($dir . '/*') ?: [] as $f) {
+        if (!is_file($f)) continue;
+        $base = basename($f);
+        if (preg_match('/^(1|v\d+)\./i', $base) && is_video_extension(pathinfo($f, PATHINFO_EXTENSION))) {
+            @unlink($f);
+        }
     }
     foreach (glob($dir . '/_upload_*') ?: [] as $f) {
         if (is_file($f)) @unlink($f);
