@@ -209,10 +209,11 @@
 </section>
 
 <script src="config.js"></script>
-<script src="app.js?v=20260630"></script>
+<script src="app.js?v=20260728"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const S = window.Shop;
+    if (!S.isVideoPath) S.isVideoPath = p => /\.(mp4|m4v|mov|webm|avi|mkv|3gp)$/i.test(String(p || ""));
     document.getElementById("ic-hand").innerHTML = S.I.hand;
     document.getElementById("ic-leaf").innerHTML = S.I.leaf;
     document.getElementById("ic-bottle").innerHTML = S.I.bottle;

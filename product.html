@@ -75,10 +75,12 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js?v=20260721"></script>
+<script src="app.js?v=20260728"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const S = window.Shop;
+    if (!S.isVideoPath) S.isVideoPath = p => /\.(mp4|m4v|mov|webm|avi|mkv|3gp)$/i.test(String(p || ""));
+    if (!S.videoMime) S.videoMime = p => { const e = String(p || "").toLowerCase().split(".").pop(); return ({ webm: "video/webm", mov: "video/quicktime", m4v: "video/mp4", avi: "video/x-msvideo", mkv: "video/x-matroska", "3gp": "video/3gpp" }[e] || "video/mp4"); };
     const idParam = new URLSearchParams(location.search).get("id");
     const matchProduct = list => list.find(x => String(x.id) === String(idParam));
     let images = [];

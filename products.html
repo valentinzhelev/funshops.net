@@ -79,10 +79,11 @@
 </main>
 
 <script src="config.js"></script>
-<script src="app.js?v=20260630"></script>
+<script src="app.js?v=20260728"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const S = window.Shop;
+    if (!S.isVideoPath) S.isVideoPath = p => /\.(mp4|m4v|mov|webm|avi|mkv|3gp)$/i.test(String(p || ""));
     const PAGE = 16;
     document.getElementById("searchIcon").innerHTML = S.I.search;
     document.getElementById("searchClear").innerHTML = S.I.x;
