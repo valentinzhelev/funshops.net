@@ -8,9 +8,9 @@ const ADMIN_PASSWORD_HASH = '$2y$10$ImtHUYStzqQTAkMbp7r2l.05ypey9Tj73DWZszwL/GWN
 // Парола: Magazin2026!NV
 
 const ORDER_EMAIL_TO   = 'orders@funshops.net';
-const ORDER_EMAIL_COPY = 'nedko.velikov@abv.bg';
+const ORDER_EMAIL_COPY = 'funshops@abv.bg';
 const ORDER_EMAIL_FROM = 'orders@funshops.net';
-const SHOP_NAME        = 'Моят Забавен Магазин';
+const SHOP_NAME        = 'Funshops';
 
 /* ABV SMTP — appssmtp.abv.bg:465, потребител orders@funshops.net + парола от ABV */
 const SMTP_HOST = 'appssmtp.abv.bg';

@@ -1,13 +1,12 @@
 /* Схема за редактиране на текстове — само plain text, без HTML */
 window.CONTENT_SECTIONS = [
     {
-        id: "contacts", title: "Контакти", hint: "Телефон, имейл и адрес — показват се във футъра и на страницата „Контакти“.",
+        id: "contacts", title: "Контакти", hint: "Телефон, имейл и общ район — показват се във футъра и на страницата „Контакти“.",
         fields: [
             { path: "contacts.phone", label: "Телефон (показван)", type: "text" },
             { path: "contacts.phone_link", label: "Телефон (за обаждане, без интервали)", type: "text" },
             { path: "contacts.email", label: "Имейл", type: "text" },
-            { path: "contacts.person", label: "Лице за контакт", type: "text" },
-            { path: "contacts.address", label: "Адрес", type: "text" },
+            { path: "contacts.address", label: "Район (общо местоположение, без точен адрес)", type: "text" },
             { path: "contacts.hours", label: "Работно време", type: "text" }
         ]
     },
@@ -26,7 +25,7 @@ window.CONTENT_SECTIONS = [
             { path: "home.hero_title_main", label: "Заглавие — основна част", type: "text" },
             { path: "home.hero_lead", label: "Въведение под заглавието", type: "textarea", rows: 3 },
             { path: "home.hero_cta_products", label: "Бутон „Разгледай продуктите“", type: "text" },
-            { path: "home.hero_cta_story", label: "Бутон „Историята на майстора“", type: "text" },
+            { path: "home.hero_cta_story", label: "Бутон „За Funshops“", type: "text" },
             { path: "home.stat_models", label: "Статистика: модела", type: "text" },
             { path: "home.stat_hand", label: "Статистика: ръчна изработка", type: "text" },
             { path: "home.stat_glue", label: "Статистика: лепила", type: "text" },
@@ -68,11 +67,10 @@ window.CONTENT_SECTIONS = [
         ]
     },
     {
-        id: "uvod", title: "Страница „Увод“", hint: "Историята на майстора — само текст, без HTML.",
+        id: "uvod", title: "Страница „Увод“", hint: "Представяне на Funshops — само текст, без HTML.",
         fields: [
             { path: "uvod.title_script", label: "Заглавие — ръкопис", type: "text" },
             { path: "uvod.title_main", label: "Заглавие — основна част", type: "text" },
-            { path: "uvod.master_line", label: "Ред под снимката", type: "text" },
             { path: "uvod.greeting", label: "Поздрав", type: "text" },
             { path: "uvod.intro", label: "Въведение", type: "textarea", rows: 2 },
             { path: "uvod.occasions_label", label: "Етикет за поводи", type: "text" },

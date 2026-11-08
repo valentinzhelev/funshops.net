@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Финализирай поръчката | Моят Забавен Магазин</title>
-    <meta name="description" content="Финализирайте вашата поръчка от Моят Забавен Магазин.">
+    <title>Финализирай поръчката | Funshops</title>
+    <meta name="description" content="Финализирайте вашата поръчка от Funshops.">
     <meta name="robots" content="noindex, follow">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -53,12 +53,10 @@
                                     <span class="rc-ic" data-ic="pin"></span><span class="rc-txt"><b>До адрес</b><small>личен адрес</small></span></label>
                             </div>
                         </div>
-                        <p class="delivery-or">или</p>
-                        <label class="radio-card delivery-pickup"><input type="radio" name="deliveryMode" value="pickup">
-                            <span class="rc-ic" data-ic="hand"></span><span class="rc-txt"><b>Лично предаване</b><small>Стара Загора</small></span></label>
+                        <p class="delivery-or" hidden></p>
                     </fieldset>
 
-                    <div class="field" id="cityField"><label for="city">Град *</label><input id="city" type="text" autocomplete="address-level2" placeholder="Стара Загора"><span class="field-err" data-for="city"></span></div>
+                    <div class="field" id="cityField"><label for="city">Град *</label><input id="city" type="text" autocomplete="address-level2" placeholder="Вашият град"><span class="field-err" data-for="city"></span></div>
                     <div class="field" id="addrField"><label for="address" id="addrLabel">Офис на куриера *</label><input id="address" type="text" autocomplete="street-address" placeholder="напр. Еконт – Идеален център"><span class="field-err" data-for="address"></span></div>
                     <div class="field full"><label for="comment">Коментар / Пожелание</label><textarea id="comment" rows="3" placeholder="Допълнителни бележки…"></textarea></div>
                 </div>
@@ -95,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const $ = id => document.getElementById(id);
     const isPickup = () => document.querySelector('input[name="deliveryMode"]:checked') !== null;
     const delivery = () => {
-        if (isPickup()) return "Лично предаване – Стара Загора";
+        if (isPickup()) return "Лично предаване";
         const courier = document.querySelector('input[name="courier"]:checked').value;
         const dest = document.querySelector('input[name="dest"]:checked').value;
         return courier + " – до " + dest;
@@ -213,7 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
             phone: $("phone").value.trim(),
             email: $("email").value.trim(),
             delivery: delivery(),
-            city: isPickup() ? "Стара Загора" : $("city").value.trim(),
+            city: $("city").value.trim(),
             address: isPickup() ? "Лично предаване" : $("address").value.trim(),
             comment: $("comment").value.trim(),
             products: freshCart,

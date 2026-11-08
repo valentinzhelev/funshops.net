@@ -24,7 +24,7 @@ if (admin_is_logged_in()) { header('Location: index.php'); exit; }
 </head>
 <body class="login-body">
     <div class="login-card">
-        <img class="login-logo" src="../images/logo_full_ink.png" alt="Моят Забавен Магазин">
+        <img class="login-logo" src="../images/logo_full_ink.png" alt="Funshops">
         <h1>Админ панел</h1>
 
         <?php if ($error): ?><div class="login-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>

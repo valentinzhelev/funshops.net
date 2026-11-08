@@ -878,7 +878,7 @@ function default_settings() {
     return [
         'delivery' => "Доставка с куриер (Спиди / Еконт) за България — 1–3 работни дни.\nМеждународна доставка чрез Български пощи — 7–20 работни дни.",
         'payment'  => "Плащане при доставка (наложен платеж) или по банков път след уговорка.",
-        'general'  => "Моят Забавен Магазин — ръчно изработени бутилки с български фолклорен мотив.",
+        'general'  => "Funshops — ръчно изработени декоративни бутилки с дървени фигурки и български фолклорен мотив.",
         'email_notifications' => true
     ];
 }
@@ -889,11 +889,10 @@ function default_content() {
     $file = defined('CONTENT_DEFAULTS_FILE') ? CONTENT_DEFAULTS_FILE : (ROOT_DIR . '/content.defaults.json');
     $defaults = read_json($file, [
         'contacts' => [
-            'phone'      => '+359 899 518 271',
-            'phone_link' => '+359899518271',
-            'email'      => 'orders@funshops.net',
-            'person'     => 'Недко Димитров',
-            'address'    => 'Стара Загора, България',
+            'phone'      => '0878 544 490',
+            'phone_link' => '+359878544490',
+            'email'      => 'funshops@abv.bg',
+            'address'    => 'Стара Загора, Западна индустриална зона',
             'hours'      => 'Пон – Нед: 09:00 – 18:00 · Онлайн 24/7',
         ],
     ]);

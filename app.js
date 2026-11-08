@@ -175,8 +175,8 @@
         header.className = "nav";
         header.innerHTML = `
           <div class="container">
-            <a href="index.html" class="brand" aria-label="Моят Забавен Магазин">
-              <img class="brand-logo brand-logo--light" src="${asset("images/logo_full.png")}" alt="Моят Забавен Магазин">
+            <a href="index.html" class="brand" aria-label="Funshops">
+              <img class="brand-logo brand-logo--light" src="${asset("images/logo_full.png")}" alt="Funshops">
               <img class="brand-logo brand-logo--ink" src="${asset("images/logo_full_ink.png")}" alt="" aria-hidden="true">
             </a>
             <nav class="nav-links">${links}</nav>
@@ -221,14 +221,14 @@
     function buildFooter(contacts, siteContent) {
         const c = contacts || {};
         const site = siteContent || {};
-        const phone = c.phone || "+359 899 518 271";
-        const phoneLink = c.phone_link || "+359899518271";
-        const email = c.email || "orders@funshops.net";
-        const address = c.address || t("Стара Загора, България", "Stara Zagora, Bulgaria");
+        const phone = c.phone || "0878 544 490";
+        const phoneLink = c.phone_link || "+359878544490";
+        const email = c.email || "funshops@abv.bg";
+        const address = c.address || t("Стара Загора, Западна индустриална зона", "Stara Zagora, Western Industrial Zone");
         const hours = c.hours || "09:00 – 18:00";
         const tagline = site.footer_tagline || t(
-            "Ръчно изработени подаръчни бутилки с български фолклорен мотив — създадени с любов в Стара Загора, без лепила и компромиси.",
-            "Handmade gift bottles with Bulgarian folk motifs — crafted with love in Stara Zagora, without glue or compromise."
+            "Ръчно изработени подаръчни бутилки с български фолклорен мотив — създадени с любов, без лепила и компромиси.",
+            "Handmade gift bottles with Bulgarian folk motifs — crafted with love, without glue or compromise."
         );
         const f = document.createElement("footer");
         f.className = "site-footer";
@@ -237,15 +237,15 @@
           <div class="container">
             <div class="footer-grid">
               <div class="footer-brand">
-                <a href="index.html" class="footer-logo" aria-label="Моят Забавен Магазин">
-                  <img src="${asset("images/logo_full.png")}" alt="Моят Забавен Магазин">
+                <a href="index.html" class="footer-logo" aria-label="Funshops">
+                  <img src="${asset("images/logo_full.png")}" alt="Funshops">
                 </a>
                 <p>${tagline}</p>
               </div>
               <div class="footer-col">
                 <h4>${t("Магазин","Shop")}</h4>
                 <a href="products.html">${t("Всички продукти","All products")}</a>
-                <a href="uvod.html">${t("За майстора","About the maker")}</a>
+                <a href="uvod.html">${t("За нас","About us")}</a>
                 <a href="delivery.html">${t("Доставка","Delivery")}</a>
                 <a href="cart.html">${t("Количка","Cart")}</a>
               </div>
@@ -258,7 +258,7 @@
               </div>
             </div>
             <div class="footer-bottom">
-              <span>© 2026 ${t("Моят Забавен Магазин. Всички права запазени.","My Fun Store. All rights reserved.")}</span>
+              <span>© 2026 ${t("Funshops. Всички права запазени.","Funshops. All rights reserved.")}</span>
               <div class="legal-links">
                 <a href="privacy.html">${t("Поверителност","Privacy")}</a>
                 <a href="cookies.html">${t("Бисквитки","Cookies")}</a>
@@ -604,7 +604,7 @@
         if (u.closing) html += `<p class="lead-line reveal" style="margin-top:26px">${escHtml(u.closing)}</p>`;
         html += `<div style="text-align:center;margin-top:34px" class="reveal">
             <a href="products.html" class="btn btn-amber">Разгледай продуктите</a>
-            <a href="contacts.html" class="btn btn-ghost">Свържи се с мен</a>
+            <a href="contacts.html" class="btn btn-ghost">Свържи се с нас</a>
         </div>`;
         container.innerHTML = html;
         observeNew(container);

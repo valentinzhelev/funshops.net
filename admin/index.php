@@ -15,7 +15,7 @@ $assetVer = max(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Админ панел — Моят Забавен Магазин</title>
+    <title>Админ панел — Funshops</title>
     <link rel="icon" type="image/png" href="../images/logo_bottle.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +28,7 @@ $assetVer = max(
     <!-- Сайдбар -->
     <aside class="sidebar" id="sidebar">
         <div class="side-brand">
-            <img class="side-logo" src="../images/logo_full.png" alt="Моят Забавен Магазин">
+            <img class="side-logo" src="../images/logo_full.png" alt="Funshops">
             <span class="side-tag">Админ панел</span>
         </div>
 
